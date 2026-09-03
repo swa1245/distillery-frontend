@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import loginHero from "../assets/login-hero.png";
 import brandLogo from "../assets/biofuelpro-logo.png";
+import { useAuth } from "../context/AuthContext";
 
 function BrandLogo({ className = "w-11 h-11" }) {
   return (
@@ -52,13 +53,24 @@ const FEATURES = [
 
 export default function Auth() {
   const navigate = useNavigate();
+  const { login } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(true);
   const [form, setForm] = useState({ email: "", password: "" });
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    navigate("/dashboard");
+    const email = String(form.email || "").trim();
+    if (!email || !form.password) return;
+
+    const username = email.includes("@") ? email.split("@")[0] : email;
+    login({
+      username: username || "Operator",
+      email,
+      role: "admin",
+      organizationName: "BioFuelPro Distillery",
+    });
+    navigate("/dashboard", { replace: true });
   };
 
   return (
