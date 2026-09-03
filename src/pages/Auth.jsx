@@ -1,191 +1,247 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { Lock, Mail, AlertCircle, Eye, EyeOff, Loader2, FlaskConical } from "lucide-react";
-import { useAuth } from "../context/AuthContext";
+import { useNavigate } from "react-router-dom";
+import {
+  User,
+  Lock,
+  Eye,
+  EyeOff,
+  LogIn,
+  ShieldCheck,
+  BarChart3,
+  FlaskConical,
+  Leaf,
+  Headphones,
+  Settings,
+  Building2,
+} from "lucide-react";
 import loginHero from "../assets/login-hero.png";
+import brandLogo from "../assets/biofuelpro-logo.png";
+
+function BrandLogo({ className = "w-11 h-11" }) {
+  return (
+    <img
+      src={brandLogo}
+      alt="BioFuelPro"
+      className={`${className} object-contain`}
+    />
+  );
+}
+
+const FEATURES = [
+  {
+    icon: BarChart3,
+    title: "Real-time Monitoring",
+    desc: "Live data from fermentation to distillation",
+  },
+  {
+    icon: FlaskConical,
+    title: "Process Optimization",
+    desc: "Improve yield, quality and plant efficiency",
+  },
+  {
+    icon: ShieldCheck,
+    title: "Data Integrity",
+    desc: "Secure, accurate and audit ready data",
+  },
+  {
+    icon: Leaf,
+    title: "Sustainable Growth",
+    desc: "Driving biofuel excellence for a better planet",
+  },
+];
 
 export default function Auth() {
   const navigate = useNavigate();
-  const { login } = useAuth();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [remember, setRemember] = useState(true);
+  const [form, setForm] = useState({ email: "", password: "" });
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
-    setError("");
-    setLoading(true);
-    try {
-      await new Promise((resolve) => setTimeout(resolve, 450));
-      if (!email.trim() || password.length < 4) {
-        throw new Error("Enter a valid email and password (min 4 characters).");
-      }
-      const username = email.split("@")[0] || "Operator";
-      login({
-        email: email.trim(),
-        username: username.replace(/[._]/g, " "),
-        role: "admin",
-        organizationName: "Digital Distillery",
-      });
-      navigate("/dashboard");
-    } catch (err) {
-      setError(err.message || "Could not sign in.");
-    } finally {
-      setLoading(false);
-    }
+    navigate("/dashboard");
   };
 
   return (
-    <div className="font-jakarta min-h-screen flex bg-white">
-      <aside className="hidden lg:flex lg:w-[52%] relative overflow-hidden min-h-screen">
-        <img
-          src={loginHero}
-          alt="Ethanol distillery columns and process plant"
-          className="absolute inset-0 w-full h-full object-cover"
-        />
-
-        <div className="relative z-10 flex flex-col justify-between w-full p-10 xl:p-14 text-white">
-          <div className="inline-flex w-fit items-center gap-3 rounded-2xl bg-[#07111f]/40 px-3.5 py-2.5 backdrop-blur-[2px]">
-            <div className="w-11 h-11 rounded-xl bg-[#2563eb] flex items-center justify-center ring-2 ring-white/30 shadow-md">
-              <FlaskConical size={22} strokeWidth={2.2} />
-            </div>
-            <div>
-              <p className="text-lg font-black tracking-tight leading-none">Digital Distillery</p>
-              <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-sky-200 mt-1">
-                Operations
-              </p>
-            </div>
-          </div>
-
-          <div className="max-w-lg rounded-2xl bg-[#07111f]/40 px-5 py-5 backdrop-blur-[2px]">
-            <h1 className="text-4xl xl:text-5xl font-black tracking-tight leading-[1.12]">
-              Digital distillery
-              <span className="block text-sky-200 mt-1">operation, under control.</span>
-            </h1>
-            <p className="mt-4 text-sm font-semibold text-white/85 leading-relaxed max-w-md">
-              Grain, mash, fermentation, production, QC, and documentation — one workspace for ethanol plant teams.
+    <div className="font-jakarta min-h-screen flex bg-white text-[#1f2937]">
+      {/* Left — login */}
+      <section className="w-full lg:w-[36%] xl:w-[34%] flex flex-col px-8 sm:px-11 xl:px-12 py-7 min-h-screen bg-white border-r border-stone-100">
+        <div className="flex items-center gap-2.5">
+          <BrandLogo className="w-10 h-10 shrink-0" />
+          <div>
+            <p className="text-[1.4rem] font-extrabold leading-none tracking-tight text-[#166534]">
+              BioFuelPro
+            </p>
+            <p className="text-[11px] text-stone-500 mt-1 font-medium">
+              Distillery Management System
             </p>
           </div>
         </div>
-      </aside>
 
-      <main className="relative flex-1 flex items-center justify-center px-6 py-8 sm:px-12 overflow-hidden min-h-screen">
-        <div className="absolute inset-0 bg-gradient-to-br from-[#eef3f9] via-white to-[#dce8f5]" />
-        <div className="absolute top-0 right-0 w-80 h-80 bg-[#2563eb]/[0.08] rounded-full blur-3xl -translate-y-1/3 translate-x-1/4" />
+        <div className="flex-1 flex flex-col justify-center max-w-[400px] w-full mx-auto lg:mx-0 py-8">
+          <h1 className="text-[1.9rem] font-extrabold text-[#111827] tracking-tight">
+            Welcome Back!
+          </h1>
+          <p className="text-stone-500 mt-2 text-[14px] leading-relaxed">
+            Login to access your distillery operations and insights
+          </p>
 
-        <div className="relative z-10 w-full max-w-[560px]">
-          <div className="mb-9 -mt-8">
-            <div className="flex items-center gap-3.5 mb-7">
-              <div className="relative shrink-0">
-                <div className="absolute -inset-1 rounded-2xl bg-[#2563eb]/10" />
-                <div className="relative w-12 h-12 rounded-xl bg-[#2563eb] text-white flex items-center justify-center border border-[#163056]/40 shadow-[0_4px_14px_rgba(37,99,235,0.25)]">
-                  <FlaskConical size={22} strokeWidth={2.2} />
-                </div>
-              </div>
-              <div>
-                <p className="text-lg font-black text-[#0f2744] tracking-tight leading-none">
-                  Digital Distillery
-                </p>
-                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-stone-400 mt-1.5">
-                  Operations
-                </p>
-              </div>
-            </div>
-
-            <h2 className="text-[38px] sm:text-[42px] font-black text-stone-900 tracking-tight leading-[1.05]">
-              Welcome back
-            </h2>
-            <p className="text-[15px] font-medium text-stone-500 mt-2.5">
-              Sign in to continue to your distillery workspace
-            </p>
-            <div className="mt-5 h-[3px] w-14 rounded-full bg-[#2563eb]" />
-          </div>
-
-          {error && (
-            <div className="flex items-center gap-2 bg-rose-50 border border-rose-100 text-rose-700 px-3.5 py-3 rounded-xl text-xs font-bold mb-5">
-              <AlertCircle size={16} className="shrink-0" />
-              <span>{error}</span>
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="mt-8 space-y-4">
             <div>
-              <label className="text-[11px] font-bold text-stone-500 mb-1.5 block">Email</label>
-              <div className="relative group">
-                <Mail
-                  size={16}
-                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400 group-focus-within:text-[#2563eb] transition-colors"
-                />
+              <label className="block text-sm font-bold text-[#111827] mb-1.5">
+                User ID / Email
+              </label>
+              <div className="relative">
+                <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-stone-400" />
                 <input
-                  type="email"
+                  type="text"
                   required
-                  autoComplete="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full pl-10 pr-3 py-3 bg-transparent border border-stone-200 focus:border-[#2563eb] focus:ring-2 focus:ring-[#2563eb]/15 text-stone-800 font-semibold rounded-xl outline-none transition-all text-sm placeholder:text-stone-400"
-                  placeholder="name@company.com"
+                  value={form.email}
+                  onChange={(e) => setForm({ ...form, email: e.target.value })}
+                  placeholder="Enter your user ID or email"
+                  className="w-full pl-11 pr-4 py-[13px] rounded-lg border border-stone-300 bg-white text-[14px] text-stone-800 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-green-700/20 focus:border-green-700 transition"
                 />
               </div>
             </div>
 
             <div>
-              <label className="text-[11px] font-bold text-stone-500 mb-1.5 block">Password</label>
-              <div className="relative group">
-                <Lock
-                  size={16}
-                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400 group-focus-within:text-[#2563eb] transition-colors"
-                />
+              <label className="block text-sm font-bold text-[#111827] mb-1.5">
+                Password
+              </label>
+              <div className="relative">
+                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-stone-400" />
                 <input
                   type={showPassword ? "text" : "password"}
                   required
-                  autoComplete="current-password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-10 pr-11 py-3 bg-transparent border border-stone-200 focus:border-[#2563eb] focus:ring-2 focus:ring-[#2563eb]/15 text-stone-800 font-semibold rounded-xl outline-none transition-all text-sm placeholder:text-stone-400"
-                  placeholder="••••••••"
+                  value={form.password}
+                  onChange={(e) => setForm({ ...form, password: e.target.value })}
+                  placeholder="Enter your password"
+                  className="w-full pl-11 pr-11 py-[13px] rounded-lg border border-stone-300 bg-white text-[14px] text-stone-800 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-green-700/20 focus:border-green-700 transition"
                 />
                 <button
                   type="button"
-                  onClick={() => setShowPassword((v) => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-stone-400 hover:text-[#2563eb]"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600"
                   aria-label={showPassword ? "Hide password" : "Show password"}
                 >
-                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  {showPassword ? <EyeOff className="w-[18px] h-[18px]" /> : <Eye className="w-[18px] h-[18px]" />}
                 </button>
               </div>
             </div>
 
+            <div className="flex items-center justify-between text-sm pt-0.5">
+              <label className="flex items-center gap-2 cursor-pointer select-none text-stone-600">
+                <input
+                  type="checkbox"
+                  checked={remember}
+                  onChange={(e) => setRemember(e.target.checked)}
+                  className="w-4 h-4 rounded border-stone-300 text-green-700 focus:ring-green-700"
+                />
+                Remember me
+              </label>
+              <button type="button" className="font-semibold text-[#15803d] hover:text-green-800">
+                Forgot Password?
+              </button>
+            </div>
+
             <button
               type="submit"
-              disabled={loading}
-              className="w-full mt-1 bg-[#2563eb] hover:bg-[#163056] disabled:opacity-50 text-white font-bold py-3 rounded-xl text-sm transition-all shadow-[0_8px_20px_rgba(37,99,235,0.25)] hover:shadow-[0_10px_24px_rgba(37,99,235,0.32)] flex items-center justify-center gap-2"
+              className="w-full flex items-center justify-center gap-2 py-[13px] rounded-lg bg-[#166534] hover:bg-[#14532d] text-white font-semibold text-[15px] shadow-md shadow-green-900/15 transition mt-1"
             >
-              {loading ? (
-                <>
-                  <Loader2 size={16} className="animate-spin" />
-                  Signing in…
-                </>
-              ) : (
-                "Sign in"
-              )}
+              <LogIn className="w-4 h-4" />
+              Login
             </button>
           </form>
-
-          <p className="mt-8 text-center text-[11px] font-semibold text-stone-400 leading-relaxed">
-            By signing in you agree to our{" "}
-            <Link to="/privacy" className="font-bold text-[#2563eb] hover:underline">
-              Privacy Policy
-            </Link>{" "}
-            and{" "}
-            <Link to="/terms" className="font-bold text-[#2563eb] hover:underline">
-              Terms of Use
-            </Link>
-            .
-          </p>
         </div>
-      </main>
+
+        <div className="flex items-center gap-2 text-[12px] text-stone-500">
+          <ShieldCheck className="w-3.5 h-3.5 text-[#16a34a]" />
+          <span>
+            Secure Login <span className="text-stone-300 mx-1">|</span> Your data is protected
+          </span>
+        </div>
+      </section>
+
+      {/* Right — hero */}
+      <section className="hidden lg:flex flex-1 relative overflow-hidden min-h-screen">
+        <img
+          src={loginHero}
+          alt="Biofuel distillery plant"
+          className="absolute inset-0 w-full h-full object-cover object-center"
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/45 via-black/25 to-black/70" />
+
+        <div className="relative z-10 flex flex-col h-full w-full">
+          {/* Top row: headline + badge */}
+          <div className="flex items-start justify-between gap-6 px-10 xl:px-12 pt-9">
+            <div className="max-w-lg pt-1">
+              <h2 className="text-[2.35rem] xl:text-[2.75rem] font-extrabold text-white leading-[1.12] tracking-tight drop-shadow">
+                Powering Sustainable
+                <br />
+                <span className="text-[#4ade80]">Biofuel Future</span>
+              </h2>
+              <div className="w-14 h-[3px] bg-[#4ade80] rounded-full mt-4 mb-4" />
+              <p className="text-white/90 text-[15px] xl:text-base leading-relaxed max-w-md">
+                Smart monitoring. Better decisions. Higher efficiency.
+                <br />
+                Together for a greener tomorrow.
+              </p>
+            </div>
+
+            <span className="inline-flex items-center gap-2 rounded-full bg-black/40 backdrop-blur-md border border-white/20 px-3.5 py-1.5 text-[11px] font-semibold text-white shrink-0 mt-1">
+              <ShieldCheck className="w-3.5 h-3.5 text-[#4ade80]" />
+              Enterprise Grade Security
+            </span>
+          </div>
+
+          <div className="flex-1" />
+
+          {/* Feature strip */}
+          <div className="mx-6 xl:mx-8 mb-0 rounded-t-xl bg-[#052e1a]/75 backdrop-blur-md border border-white/10 border-b-0 px-5 xl:px-7 py-5">
+            <div className="grid grid-cols-4 gap-4 xl:gap-6">
+              {FEATURES.map(({ icon: Icon, title, desc }) => (
+                <div key={title} className="flex gap-3 min-w-0">
+                  <div className="w-9 h-9 rounded-lg bg-[#16a34a]/25 flex items-center justify-center shrink-0 mt-0.5">
+                    <Icon className="w-4 h-4 text-[#4ade80]" strokeWidth={2.2} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[12px] xl:text-[13px] font-bold text-[#4ade80] leading-snug">
+                      {title}
+                    </p>
+                    <p className="text-[10px] xl:text-[11px] text-white/80 leading-snug mt-1">
+                      {desc}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Bottom footer bar */}
+          <div className="bg-[#0b1220] px-6 xl:px-8 py-3.5">
+            <div className="flex items-center justify-between gap-4 text-[11px] text-white/70">
+              <div className="flex items-center gap-2 min-w-0">
+                <Headphones className="w-3.5 h-3.5 text-[#4ade80] shrink-0" />
+                <span>
+                  <span className="font-semibold text-white">Need Help?</span> Contact Support
+                </span>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <Settings className="w-3.5 h-3.5 text-[#4ade80]" />
+                <span>
+                  Version 1.0.0 <span className="text-white/40 mx-1">|</span> All rights reserved
+                </span>
+              </div>
+              <div className="flex items-center gap-2 min-w-0 justify-end text-right">
+                <Building2 className="w-3.5 h-3.5 text-[#4ade80] shrink-0" />
+                <span>
+                  <span className="font-semibold text-white">BioFuelPro Solutions Pvt. Ltd.</span>
+                  {" "}Empowering Distilleries
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }
