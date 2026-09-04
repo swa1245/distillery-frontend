@@ -77,17 +77,29 @@ export function DonutChart({ segments, total, centerLabel = "TOTAL", centerValue
   );
 }
 
-export function LineChart({ series, labels, height = 180, domain, target, targetLabel, showDots = false }) {
-  const w = 420;
+export function LineChart({
+  series,
+  labels,
+  height = 180,
+  width = 720,
+  domain,
+  target,
+  targetLabel,
+  showDots = false,
+  highlightIndex = null,
+  className = "",
+}) {
+  const w = width;
   const h = height;
-  const pad = { l: 32, r: 10, t: 14, b: 24 };
+  const pad = { l: 40, r: 16, t: 16, b: 28 };
   const innerW = w - pad.l - pad.r;
   const innerH = h - pad.t - pad.b;
-  const all = series.flatMap((s) => s.data);
-  const sharedMin = domain?.[0] ?? Math.min(...all);
-  const sharedMax = domain?.[1] ?? Math.max(...all);
+  const all = series.flatMap((s) => s.data || []);
+  const sharedMin = domain?.[0] ?? (all.length ? Math.min(0, ...all) : 0);
+  const sharedMax = domain?.[1] ?? (all.length ? Math.max(...all) : 1);
   const sharedSpan = sharedMax - sharedMin || 1;
-  const useShared = Boolean(domain);
+  // Multi-series charts always share one Y scale so lines compare correctly.
+  const useShared = Boolean(domain) || series.length > 1;
 
   const toXY = (data) => {
     const min = useShared ? sharedMin : Math.min(...data);
@@ -103,23 +115,46 @@ export function LineChart({ series, labels, height = 180, domain, target, target
   const targetY =
     target == null || !useShared ? null : pad.t + innerH - ((Number(target) - sharedMin) / sharedSpan) * innerH;
 
+  const highlightX =
+    highlightIndex == null || highlightIndex < 0
+      ? null
+      : pad.l + (highlightIndex / Math.max(labels.length - 1, 1)) * innerW;
+  const bandW = Math.max(18, innerW / Math.max(labels.length * 1.2, 1));
+
   return (
-    <svg viewBox={`0 0 ${w} ${h}`} className="h-[180px] w-full">
-      {[0, 0.5, 1].map((t) => {
+    <svg
+      viewBox={`0 0 ${w} ${h}`}
+      preserveAspectRatio="none"
+      className={`block w-full ${className}`}
+      style={{ height, minHeight: height }}
+    >
+      {[0, 0.25, 0.5, 0.75, 1].map((t) => {
         const y = pad.t + innerH * (1 - t);
         const val = sharedMin + sharedSpan * t;
-        const label = sharedSpan < 8 ? val.toFixed(2) : String(Math.round(val));
+        const label = sharedSpan < 8 ? val.toFixed(1) : String(Math.round(val));
         return (
           <g key={t}>
             <line x1={pad.l} x2={w - pad.r} y1={y} y2={y} stroke="#eef2f6" strokeWidth="1" />
             {useShared ? (
-              <text x={pad.l - 4} y={y + 3} textAnchor="end" fill="#94a3b8" fontSize="8" fontWeight="700">
+              <text x={pad.l - 6} y={y + 3} textAnchor="end" fill="#94a3b8" fontSize="9" fontWeight="700">
                 {label}
               </text>
             ) : null}
           </g>
         );
       })}
+      {highlightX != null ? (
+        <rect
+          x={highlightX - bandW / 2}
+          y={pad.t}
+          width={bandW}
+          height={innerH}
+          rx="4"
+          fill="rgba(59,116,232,0.12)"
+          stroke="rgba(59,116,232,0.28)"
+          strokeWidth="1"
+        />
+      ) : null}
       {targetY != null ? (
         <g>
           <line
@@ -139,20 +174,31 @@ export function LineChart({ series, labels, height = 180, domain, target, target
         </g>
       ) : null}
       {series.map((s) => {
-        const pts = toXY(s.data);
+        const pts = toXY(s.data || []);
         return (
           <g key={s.label}>
             <polyline
               points={pts.map((p) => p.join(",")).join(" ")}
               fill="none"
               stroke={s.color}
-              strokeWidth="2.2"
+              strokeWidth={s.dashed ? 2.2 : 2.4}
               strokeLinejoin="round"
               strokeLinecap="round"
+              strokeDasharray={s.dashed ? "6 4" : undefined}
+              vectorEffect="non-scaling-stroke"
             />
             {showDots
               ? pts.map((p, i) => (
-                  <circle key={i} cx={p[0]} cy={p[1]} r="3.2" fill="#fff" stroke={s.color} strokeWidth="2" />
+                  <circle
+                    key={i}
+                    cx={p[0]}
+                    cy={p[1]}
+                    r="3.4"
+                    fill="#fff"
+                    stroke={s.color}
+                    strokeWidth="2"
+                    vectorEffect="non-scaling-stroke"
+                  />
                 ))
               : null}
           </g>
@@ -160,8 +206,17 @@ export function LineChart({ series, labels, height = 180, domain, target, target
       })}
       {labels.map((lab, i) => {
         const x = pad.l + (i / Math.max(labels.length - 1, 1)) * innerW;
+        const active = highlightIndex === i;
         return (
-          <text key={lab} x={x} y={h - 6} textAnchor="middle" fill="#94a3b8" fontSize="9" fontWeight="700">
+          <text
+            key={lab}
+            x={x}
+            y={h - 7}
+            textAnchor="middle"
+            fill={active ? "#2563eb" : "#94a3b8"}
+            fontSize="10"
+            fontWeight={active ? "800" : "700"}
+          >
             {lab}
           </text>
         );

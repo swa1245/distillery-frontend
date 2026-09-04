@@ -392,6 +392,14 @@ export default function LabOverviewPage() {
             </div>
             <button
               type="button"
+              onClick={() => navigate("/laboratory/analysis")}
+              className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 text-[12px] font-bold text-emerald-700 hover:bg-emerald-100"
+            >
+              <TestTube2 size={14} strokeWidth={2.4} />
+              HPLC Analysis
+            </button>
+            <button
+              type="button"
               onClick={() => navigate("/laboratory/register")}
               className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-[#3b74e8] px-3 text-[12px] font-bold text-white shadow-sm hover:bg-[#2f63d4]"
             >

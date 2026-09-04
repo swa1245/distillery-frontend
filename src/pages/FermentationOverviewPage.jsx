@@ -11,7 +11,6 @@ import {
   Plus,
   Search,
   Thermometer,
-  Waves,
   Wheat,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
@@ -62,7 +61,8 @@ const FERMENTERS = [
     rs: 1.8,
     viability: 94,
     cells: 12.5,
-    foam: "Low",
+    dosing1: "1.20",
+    sg: 1.048,
     start: "27 Apr 2025, 08:30",
     hours: "29h 15m",
     end: "Tomorrow 11:15",
@@ -95,7 +95,8 @@ const FERMENTERS = [
     rs: 1.55,
     viability: 92,
     cells: 13.1,
-    foam: "Med",
+    dosing1: "1.15",
+    sg: 1.042,
     start: "Yesterday 14:00",
     hours: "41h 00m",
     end: "Today 18:00",
@@ -127,7 +128,8 @@ const FERMENTERS = [
     rs: 1.2,
     viability: 88,
     cells: 11.2,
-    foam: "High",
+    dosing1: "1.35",
+    sg: 1.038,
     start: "Yesterday 08:00",
     hours: "47h 10m",
     end: "Today 12:00",
@@ -159,7 +161,8 @@ const FERMENTERS = [
     rs: 2.8,
     viability: 95,
     cells: 10.4,
-    foam: "Low",
+    dosing1: "1.00",
+    sg: 1.055,
     start: "Today 04:00",
     hours: "11h 20m",
     end: "Tomorrow 08:00",
@@ -191,7 +194,8 @@ const FERMENTERS = [
     rs: 1.1,
     viability: 93,
     cells: 13.4,
-    foam: "Low",
+    dosing1: "1.10",
+    sg: 1.036,
     start: "Yesterday 02:00",
     hours: "37h 40m",
     end: "Today 16:00",
@@ -223,7 +227,8 @@ const FERMENTERS = [
     rs: 0,
     viability: 0,
     cells: 0,
-    foam: "—",
+    dosing1: "—",
+    sg: 0,
     start: "Today 10:00",
     hours: "02h 10m CIP",
     end: "Today 16:00",
@@ -243,7 +248,7 @@ const FERMENTERS = [
 const ALERTS = [
   { level: "high", title: "F3 — Ethanol low", time: "10:18 AM", detail: "10.62 % v/v vs 11.50 target" },
   { level: "warn", title: "F3 — Temperature high", time: "10:05 AM", detail: "34.1 °C vs 33.0 limit" },
-  { level: "warn", title: "F2 — Foam detected", time: "09:40 AM", detail: "Foam level medium" },
+  { level: "warn", title: "F2 — Dosing 1 high", time: "09:40 AM", detail: "Dosing 1 at 1.15 L/h" },
   { level: "info", title: "F6 — CIP in progress", time: "10:00 AM", detail: "Cycle due 16:00" },
   { level: "info", title: "F5 — Near drop", time: "09:12 AM", detail: "Ethanol 11.48 % · RS 1.10 %" },
 ];
@@ -255,6 +260,8 @@ const TREND = {
     temp: [31.8, 32.1, 32.3, 32.4, 32.2, 32.4],
     ph: [4.6, 4.55, 4.5, 4.48, 4.47, 4.48],
     brix: [3.1, 2.7, 2.4, 2.2, 2.15, 2.1],
+    sg: [1.062, 1.056, 1.052, 1.05, 1.049, 1.048],
+    rs: [3.2, 2.7, 2.3, 2.1, 1.95, 1.8],
   },
   "48h": {
     labels: ["-48h", "-36h", "-24h", "-18h", "-12h", "-6h", "Now"],
@@ -262,6 +269,8 @@ const TREND = {
     temp: [31.4, 31.8, 32.0, 32.2, 32.5, 32.3, 32.4],
     ph: [4.8, 4.7, 4.62, 4.55, 4.5, 4.48, 4.48],
     brix: [8.2, 6.4, 4.8, 3.6, 2.8, 2.3, 2.1],
+    sg: [1.078, 1.07, 1.062, 1.056, 1.052, 1.05, 1.048],
+    rs: [6.4, 5.1, 3.8, 3.0, 2.4, 2.0, 1.8],
   },
   "7d": {
     labels: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
@@ -269,6 +278,8 @@ const TREND = {
     temp: [32.0, 32.2, 32.4, 32.6, 32.1, 32.3, 32.4],
     ph: [4.5, 4.48, 4.46, 4.5, 4.52, 4.48, 4.48],
     brix: [2.4, 2.2, 2.1, 2.3, 2.0, 2.15, 2.1],
+    sg: [1.05, 1.048, 1.046, 1.049, 1.044, 1.047, 1.048],
+    rs: [2.2, 2.0, 1.9, 2.1, 1.7, 1.85, 1.8],
   },
 };
 
@@ -424,7 +435,14 @@ export default function FermentationOverviewPage() {
     { label: "Residual Sugar", value: `${selected.rs} %`, sub: "Target: ≤ 2.0", icon: Wheat, iconClass: "bg-amber-50 text-amber-600" },
     { label: "Viability", value: `${selected.viability} %`, sub: "Target: ≥ 90 %", bad: selected.viability < 90, icon: Gauge, iconClass: "bg-emerald-50 text-emerald-600" },
     { label: "Cell Count", value: `${selected.cells} B/mL`, sub: "Target: 10 – 14", icon: Microscope, iconClass: "bg-indigo-50 text-indigo-600" },
-    { label: "Foam Level", value: selected.foam, sub: "Target: Low", bad: selected.foam === "High", icon: Waves, iconClass: "bg-teal-50 text-teal-700" },
+    {
+      label: "Dosing 1",
+      value: selected.dosing1 === "—" ? "—" : `${selected.dosing1} L/h`,
+      sub: "Target: 1.00 – 1.40",
+      bad: selected.dosing1 !== "—" && Number(selected.dosing1) > 1.4,
+      icon: Droplets,
+      iconClass: "bg-teal-50 text-teal-700",
+    },
     {
       label: "Efficiency",
       value: selected.eff === "—" ? "—" : `${selected.eff} %`,
@@ -621,6 +639,8 @@ export default function FermentationOverviewPage() {
             <span className="inline-flex items-center gap-1"><span className="h-1.5 w-3 rounded-full bg-[#3b82f6]" /> Ethanol</span>
             <span className="inline-flex items-center gap-1"><span className="h-1.5 w-3 rounded-full bg-[#ef4444]" /> Temp</span>
             <span className="inline-flex items-center gap-1"><span className="h-1.5 w-3 rounded-full bg-[#22c55e]" /> pH</span>
+            <span className="inline-flex items-center gap-1"><span className="h-1.5 w-3 rounded-full bg-[#a855f7]" /> SG</span>
+            <span className="inline-flex items-center gap-1"><span className="h-1.5 w-3 rounded-full bg-[#f59e0b]" /> RS</span>
           </div>
           <LineChart
             labels={trend.labels}
@@ -628,6 +648,8 @@ export default function FermentationOverviewPage() {
               { label: "EtOH", color: "#3b82f6", data: trend.etoh },
               { label: "Temp", color: "#ef4444", data: trend.temp },
               { label: "pH", color: "#22c55e", data: trend.ph },
+              { label: "SG", color: "#a855f7", data: trend.sg },
+              { label: "RS", color: "#f59e0b", data: trend.rs },
             ]}
           />
         </Card>

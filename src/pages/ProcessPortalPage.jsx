@@ -12,7 +12,7 @@ const MODULES = [
     meta: "Cook",
   },
   {
-    title: "Fermentation Analysis Report",
+    title: "Fermenter Report",
     description: "Pre-fermenter and fermenters — pH, gravity, RS %, alcohol, VA, and cell count.",
     icon: FlaskConical,
     path: "/process/fermentation",

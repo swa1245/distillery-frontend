@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Cog, FileSpreadsheet, Save, Trash2 } from "lucide-react";
+import { ArrowLeft, Cog, Columns3, FileSpreadsheet, Save, Trash2 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { downloadExcelTable } from "../utils/exportReport";
 import {
@@ -20,15 +20,16 @@ const STORAGE_KEY = "distiller_milling_flour_analysis";
 const cellInput =
   "w-full min-w-[4.5rem] rounded-md border border-sky-100 bg-white px-1.5 py-1.5 text-[12px] font-semibold text-stone-800 outline-none focus:border-[#2563eb] focus:ring-1 focus:ring-[#2563eb]/20";
 
-const FEEDSTOCKS = ["Maize", "Rice", "Mixed"];
-
 const SHIFTS = [
   { key: "A", label: "A Shift", times: ["7:00 AM", "9:00 AM", "11:00 AM", "1:00 PM"] },
   { key: "B", label: "B Shift", times: ["3:00 PM", "5:00 PM", "7:00 PM", "9:00 PM"] },
   { key: "C", label: "C Shift", times: ["11:00 PM", "1:00 AM", "3:00 AM", "5:00 AM"] },
 ];
 
-const MILLING_COLS = [
+const FERMENTERS = ["F1", "F2", "F3", "F4", "F5", "F6"];
+
+/** Previous detailed milling columns (unchanged). */
+const MILLING_COLS_5 = [
   { key: "um12", label: "1.2 um" },
   { key: "um1", label: "1 um" },
   { key: "um085", label: "0.85 um" },
@@ -37,24 +38,15 @@ const MILLING_COLS = [
   { key: "finePowder", label: "Fine powder" },
 ];
 
-const VALUE_KEYS = MILLING_COLS.map((c) => c.key);
-const COL_COUNT = 14;
-
-const EXPORT_HEADERS = [
-  "Sl. No.",
-  "Date",
-  "Time",
-  "Feedstock",
-  "% Corn",
-  "1.2 um",
-  "1 um",
-  "0.85 um",
-  "0.6 um",
-  "0.3 um",
-  "Fine powder",
-  "Starch %",
-  "Remarks",
+/** Combined milling sieves (3 columns). */
+const MILLING_COLS_3 = [
+  { key: "mesh1180_0850", label: "1.180+0.850 mm" },
+  { key: "mesh0600_0300", label: "0.600+0.300 mm" },
+  { key: "finePowder", label: "Fine Powder" },
 ];
+
+const DETAIL_VALUE_KEYS = MILLING_COLS_5.map((c) => c.key);
+const COMBINED_VALUE_KEYS = MILLING_COLS_3.map((c) => c.key);
 
 function num(v) {
   const n = Number(String(v ?? "").replace(/,/g, "").trim());
@@ -103,15 +95,18 @@ function blankRow(slNo, date = todayIso()) {
     shift: "",
     time: "",
     date,
-    feedstock: "",
-    cornPct: "",
+    maize: "",
+    brownRice: "",
     um12: "",
     um1: "",
     um085: "",
     um06: "",
     um03: "",
+    mesh1180_0850: "",
+    mesh0600_0300: "",
     finePowder: "",
     starch: "",
+    passFermenter: "",
     remarks: "",
   };
 }
@@ -119,6 +114,21 @@ function blankRow(slNo, date = todayIso()) {
 function hydrateRow(row, date, slNo) {
   const time = row.time || "";
   const base = blankRow(slNo, date);
+  const um12 = row.um12 ?? row.mesh1180 ?? "";
+  const um1 = row.um1 ?? "";
+  const um085 = row.um085 ?? row.mesh0850 ?? row.coarse085 ?? "";
+  const um06 = row.um06 ?? row.mesh0600 ?? row.medium600 ?? "";
+  const um03 = row.um03 ?? row.mesh0300 ?? row.medium300 ?? "";
+  const finePowder = row.finePowder ?? row.fines ?? "";
+  let mesh1180_0850 = row.mesh1180_0850 ?? "";
+  let mesh0600_0300 = row.mesh0600_0300 ?? "";
+  if (!String(mesh1180_0850).trim() && (String(um12).trim() || String(um085).trim())) {
+    mesh1180_0850 = String(roundQty(num(um12) + num(um085)));
+  }
+  if (!String(mesh0600_0300).trim() && (String(um06).trim() || String(um03).trim())) {
+    mesh0600_0300 = String(roundQty(num(um06) + num(um03)));
+  }
+
   return {
     ...base,
     ...row,
@@ -127,14 +137,19 @@ function hydrateRow(row, date, slNo) {
     date: row.date || date,
     time,
     shift: row.shift || shiftForTime(time),
-    feedstock: row.feedstock ?? "",
-    cornPct: row.cornPct ?? "",
-    um12: row.um12 ?? "",
-    um1: row.um1 ?? row.coarse1 ?? "",
-    um085: row.um085 ?? row.coarse085 ?? "",
-    um06: row.um06 ?? row.medium600 ?? "",
-    um03: row.um03 ?? row.medium300 ?? "",
-    finePowder: row.finePowder ?? row.fines ?? "",
+    maize: row.maize ?? "",
+    brownRice: row.brownRice ?? "",
+    um12,
+    um1,
+    um085,
+    um06,
+    um03,
+    mesh1180_0850,
+    mesh0600_0300,
+    finePowder,
+    starch: row.starch ?? "",
+    passFermenter: row.passFermenter ?? "",
+    remarks: row.remarks ?? "",
   };
 }
 
@@ -158,20 +173,30 @@ function loadMillingStore() {
   return loadSheetStore(STORAGE_KEY);
 }
 
-function rowToExport(row) {
+function exportHeaders(millingCols) {
+  return [
+    "Sl. No.",
+    "Date",
+    "Time",
+    "Maize",
+    "Brown Rice",
+    ...millingCols.map((c) => c.label),
+    "Starch %",
+    "Pass Fermenter",
+    "Remarks",
+  ];
+}
+
+function rowToExport(row, millingCols) {
   return [
     row.slNo,
     formatDisplayDate(row.date),
     row.time,
-    row.feedstock,
-    row.cornPct,
-    row.um12,
-    row.um1,
-    row.um085,
-    row.um06,
-    row.um03,
-    row.finePowder,
+    row.maize,
+    row.brownRice,
+    ...millingCols.map((c) => row[c.key]),
     row.starch,
+    row.passFermenter,
     row.remarks,
   ];
 }
@@ -186,7 +211,14 @@ export default function MillingFlourAnalysisPage() {
   const [rows, setRows] = useState([]);
   const [status, setStatus] = useState("");
   const [statusType, setStatusType] = useState("ok");
+  /** "5" = detailed sieves, "3" = combined sieves */
+  const [millingMode, setMillingMode] = useState("5");
   const orgName = user?.organizationName || "Digital Distillery";
+
+  const millingCols = millingMode === "3" ? MILLING_COLS_3 : MILLING_COLS_5;
+  const valueKeys = millingMode === "3" ? COMBINED_VALUE_KEYS : DETAIL_VALUE_KEYS;
+  /** Sl + Date + Time + Maize + BrownRice + milling + Starch + PassFerm + Remarks + delete */
+  const colCount = 5 + millingCols.length + 4;
 
   const refreshDates = () => setSavedDates(listSheetDates(loadMillingStore()));
 
@@ -221,9 +253,9 @@ export default function MillingFlourAnalysisPage() {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return rows.filter((row) => {
-      if (typeFilter && row.feedstock !== typeFilter) return false;
+      if (typeFilter && row.passFermenter !== typeFilter) return false;
       if (!q) return true;
-      return [row.time, row.feedstock, row.remarks, row.date]
+      return [row.time, row.maize, row.brownRice, row.passFermenter, row.remarks, row.date]
         .join(" ")
         .toLowerCase()
         .includes(q);
@@ -235,10 +267,10 @@ export default function MillingFlourAnalysisPage() {
       fileName: `Milling_Flour_Analysis_${filterDate}.xlsx`,
       title: "Milling flour analysis",
       companyName: orgName,
-      headers: EXPORT_HEADERS,
-      rows: filtered.map(rowToExport),
+      headers: exportHeaders(millingCols),
+      rows: filtered.map((row) => rowToExport(row, millingCols)),
       sheetName: "Milling data",
-      subtitle: `Current readings & milling data  ·  ${formatSavedDate(filterDate)}  ·  ${filtered.length} ${
+      subtitle: `Current readings & milling data (${millingMode}-col)  ·  ${formatSavedDate(filterDate)}  ·  ${filtered.length} ${
         filtered.length === 1 ? "entry" : "entries"
       }`,
     });
@@ -251,6 +283,40 @@ export default function MillingFlourAnalysisPage() {
         if (row.id !== id) return row;
         const next = { ...row, [field]: value };
         if (field === "time") next.shift = shiftForTime(value);
+
+        // Feedstock %: Maize + Brown Rice always total 100 (supports decimals)
+        if (field === "maize" || field === "brownRice") {
+          const raw = String(value ?? "").trim();
+          if (raw === "" || raw === "." || raw === "-") {
+            next[field] = raw === "." || raw === "-" ? raw : "";
+            if (raw === "") {
+              if (field === "maize") next.brownRice = "";
+              else next.maize = "";
+            }
+          } else {
+            // Allow in-progress decimals like "40." or "40.5"
+            const validPartial = /^-?\d*\.?\d*$/.test(raw);
+            if (!validPartial) return row;
+
+            next[field] = raw;
+            const entered = num(raw);
+            if (Number.isFinite(entered) && raw !== "." && !raw.endsWith(".")) {
+              const clamped = Math.min(100, Math.max(0, entered));
+              if (clamped !== entered) next[field] = String(clamped);
+              const complement = roundQty(100 - clamped);
+              const complementStr =
+                Number.isInteger(complement) ? String(complement) : String(complement);
+              if (field === "maize") next.brownRice = complementStr;
+              else next.maize = complementStr;
+            } else if (Number.isFinite(entered) && raw.endsWith(".")) {
+              // While typing trailing point, update complement from integer part
+              const clamped = Math.min(100, Math.max(0, entered));
+              const complement = roundQty(100 - clamped);
+              if (field === "maize") next.brownRice = String(complement);
+              else next.maize = String(complement);
+            }
+          }
+        }
         return next;
       })
     );
@@ -259,7 +325,7 @@ export default function MillingFlourAnalysisPage() {
   const addRow = () => {
     const slNo = rows.length ? Math.max(...rows.map((r) => Number(r.slNo) || 0)) + 1 : 1;
     const next = blankRow(slNo, filterDate);
-    if (typeFilter) next.feedstock = typeFilter;
+    if (typeFilter) next.passFermenter = typeFilter;
     setRows((prev) => [...prev, next]);
   };
 
@@ -269,11 +335,12 @@ export default function MillingFlourAnalysisPage() {
 
   const averages = useMemo(() => {
     const next = {};
-    for (const key of VALUE_KEYS) next[key] = formatAvg(filtered.map((row) => row[key]));
+    for (const key of valueKeys) next[key] = formatAvg(filtered.map((row) => row[key]));
     next.starch = formatAvg(filtered.map((row) => row.starch));
-    next.cornPct = formatAvg(filtered.map((row) => row.cornPct));
+    next.maize = formatAvg(filtered.map((row) => row.maize));
+    next.brownRice = formatAvg(filtered.map((row) => row.brownRice));
     return next;
-  }, [filtered]);
+  }, [filtered, valueKeys]);
 
   const stopped = (row) => /stop/i.test(String(row.remarks || ""));
   const grouped = SHIFTS.map((shift) => ({
@@ -317,6 +384,30 @@ export default function MillingFlourAnalysisPage() {
                 <p className="text-[9px] font-extrabold uppercase tracking-wider text-sky-100/80">Entries</p>
                 <p className="text-lg font-black tabular-nums leading-tight">{rows.length}</p>
               </div>
+              <div className="inline-flex rounded-xl bg-white/12 p-1 ring-1 ring-white/20">
+                <button
+                  type="button"
+                  onClick={() => setMillingMode("5")}
+                  className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+                    millingMode === "5" ? "bg-white text-[#2563eb]" : "text-white/85 hover:bg-white/10"
+                  }`}
+                  title="5 sieve columns"
+                >
+                  <Columns3 size={14} strokeWidth={2.4} />
+                  5 col
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMillingMode("3")}
+                  className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+                    millingMode === "3" ? "bg-white text-[#2563eb]" : "text-white/85 hover:bg-white/10"
+                  }`}
+                  title="3 combined columns"
+                >
+                  <Columns3 size={14} strokeWidth={2.4} />
+                  3 col
+                </button>
+              </div>
               <button
                 type="button"
                 onClick={handleExport}
@@ -352,13 +443,13 @@ export default function MillingFlourAnalysisPage() {
           onDateChange={setFilterDate}
           savedDates={savedDates}
           formatDate={formatSavedDate}
-          typeLabel="Feedstock"
+          typeLabel="Pass fermenter"
           typeValue={typeFilter}
-          typeOptions={FEEDSTOCKS}
+          typeOptions={FERMENTERS}
           onTypeChange={setTypeFilter}
           search={search}
           onSearchChange={setSearch}
-          searchPlaceholder="Search time, feedstock, remarks…"
+          searchPlaceholder="Search time, maize, brown rice, fermenter…"
           onAddRow={addRow}
         />
 
@@ -372,19 +463,22 @@ export default function MillingFlourAnalysisPage() {
                 <th colSpan={2} className="px-3 py-2.5 text-center border-r border-white/10">
                   Current readings
                 </th>
-                <th rowSpan={2} className="px-3 py-2.5 border-r border-white/10 bg-[#2563eb] min-w-[140px]">
+                <th colSpan={2} className="px-3 py-2.5 text-center border-r border-white/10 bg-[#2563eb]">
                   Feedstock
                 </th>
-                <th rowSpan={2} className="px-3 py-2.5 border-r border-white/10 bg-[#2563eb] min-w-[90px]">
-                  % Corn
-                </th>
-                <th colSpan={6} className="px-3 py-2.5 text-center border-r border-white/10 bg-[#3b74e8]">
+                <th
+                  colSpan={millingCols.length}
+                  className="px-3 py-2.5 text-center border-r border-white/10 bg-[#3b74e8]"
+                >
                   Milling data
                 </th>
                 <th rowSpan={2} className="px-3 py-2.5 border-r border-white/10 min-w-[90px]">
                   Starch %
                 </th>
-                <th rowSpan={2} className="px-3 py-2.5 min-w-[200px]">
+                <th rowSpan={2} className="px-3 py-2.5 border-r border-white/10 bg-[#1d4ed8] min-w-[120px]">
+                  Pass Fermenter
+                </th>
+                <th rowSpan={2} className="px-3 py-2.5 min-w-[180px]">
                   Remarks
                 </th>
                 <th rowSpan={2} className="px-2 py-2.5 w-10" />
@@ -392,10 +486,16 @@ export default function MillingFlourAnalysisPage() {
               <tr className="bg-[#163056] text-white font-extrabold uppercase tracking-wider text-[10px]">
                 <th className="px-3 py-2 border-r border-white/10 min-w-[148px]">Date</th>
                 <th className="px-3 py-2 border-r border-white/10 min-w-[128px]">Time</th>
-                {MILLING_COLS.map((col) => (
+                <th className="px-2 py-2 border-r border-white/10 bg-[#1d4ed8] min-w-[100px] text-center">
+                  Maize
+                </th>
+                <th className="px-2 py-2 border-r border-white/10 bg-[#1d4ed8] min-w-[110px] text-center">
+                  Brown Rice
+                </th>
+                {millingCols.map((col) => (
                   <th
                     key={col.key}
-                    className="px-2 py-2 border-r border-white/10 bg-[#1d4ed8] min-w-[100px] text-center"
+                    className="px-2 py-2 border-r border-white/10 bg-[#1d4ed8] min-w-[110px] text-center"
                   >
                     {col.label}
                   </th>
@@ -405,7 +505,7 @@ export default function MillingFlourAnalysisPage() {
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={COL_COUNT} className="px-4 py-12 text-center text-sm font-bold text-stone-400">
+                  <td colSpan={colCount} className="px-4 py-12 text-center text-sm font-bold text-stone-400">
                     No readings yet. Click Add row.
                   </td>
                 </tr>
@@ -419,6 +519,8 @@ export default function MillingFlourAnalysisPage() {
                       updateRow={updateRow}
                       removeRow={removeRow}
                       stopped={stopped}
+                      millingCols={millingCols}
+                      colCount={colCount}
                     />
                   ))}
                   {ungrouped.length ? (
@@ -428,19 +530,23 @@ export default function MillingFlourAnalysisPage() {
                       updateRow={updateRow}
                       removeRow={removeRow}
                       stopped={stopped}
+                      millingCols={millingCols}
+                      colCount={colCount}
                     />
                   ) : null}
                   <tr className="bg-[#eef3f9] font-bold">
-                    <td colSpan={4} className="px-3 py-2.5 text-[#0f2744]">
+                    <td colSpan={3} className="px-3 py-2.5 text-[#0f2744]">
                       Average
                     </td>
-                    <td className="px-2 py-2 tabular-nums text-[#2563eb]">{averages.cornPct}</td>
-                    {VALUE_KEYS.map((key) => (
+                    <td className="px-2 py-2 tabular-nums text-[#2563eb]">{averages.maize}</td>
+                    <td className="px-2 py-2 tabular-nums text-[#2563eb]">{averages.brownRice}</td>
+                    {valueKeys.map((key) => (
                       <td key={key} className="px-2 py-2 tabular-nums text-[#2563eb]">
                         {averages[key]}
                       </td>
                     ))}
                     <td className="px-2 py-2 tabular-nums text-[#2563eb]">{averages.starch}</td>
+                    <td />
                     <td />
                     <td />
                   </tr>
@@ -454,11 +560,11 @@ export default function MillingFlourAnalysisPage() {
   );
 }
 
-function ShiftBlock({ label, rows, updateRow, removeRow, stopped }) {
+function ShiftBlock({ label, rows, updateRow, removeRow, stopped, millingCols, colCount }) {
   return (
     <>
       <tr className="bg-[#e8f0fe]">
-        <td colSpan={COL_COUNT} className="px-3 py-2 text-[11px] font-black uppercase tracking-[0.14em] text-[#0f2744]">
+        <td colSpan={colCount} className="px-3 py-2 text-[11px] font-black uppercase tracking-[0.14em] text-[#0f2744]">
           {label}
         </td>
       </tr>
@@ -476,24 +582,27 @@ function ShiftBlock({ label, rows, updateRow, removeRow, stopped }) {
               placeholder="Time"
             />
           </td>
-          <td className="px-1.5 py-1.5 min-w-[140px] bg-[#eef3f9]">
-            <DistillerSelect
-              compact
-              value={row.feedstock}
-              onChange={(v) => updateRow(row.id, "feedstock", v)}
-              options={[{ value: "", label: "Select" }, ...FEEDSTOCKS]}
-              placeholder="Select"
+          <td className="px-1.5 py-1.5 bg-[#eef3f9]">
+            <input
+              className={cellInput}
+              inputMode="decimal"
+              step="any"
+              value={row.maize}
+              onChange={(e) => updateRow(row.id, "maize", e.target.value)}
+              placeholder="Maize %"
             />
           </td>
           <td className="px-1.5 py-1.5 bg-[#eef3f9]">
             <input
               className={cellInput}
               inputMode="decimal"
-              value={row.cornPct}
-              onChange={(e) => updateRow(row.id, "cornPct", e.target.value)}
+              step="any"
+              value={row.brownRice}
+              onChange={(e) => updateRow(row.id, "brownRice", e.target.value)}
+              placeholder="Brown rice %"
             />
           </td>
-          {MILLING_COLS.map((col) => (
+          {millingCols.map((col) => (
             <td key={col.key} className="px-1.5 py-1.5 bg-[#f7faf7]">
               <input
                 className={cellInput}
@@ -504,7 +613,21 @@ function ShiftBlock({ label, rows, updateRow, removeRow, stopped }) {
             </td>
           ))}
           <td className="px-1.5 py-1.5">
-            <input className={cellInput} inputMode="decimal" value={row.starch} onChange={(e) => updateRow(row.id, "starch", e.target.value)} />
+            <input
+              className={cellInput}
+              inputMode="decimal"
+              value={row.starch}
+              onChange={(e) => updateRow(row.id, "starch", e.target.value)}
+            />
+          </td>
+          <td className="px-1.5 py-1.5 bg-[#eef3f9]">
+            <DistillerSelect
+              compact
+              value={row.passFermenter}
+              onChange={(v) => updateRow(row.id, "passFermenter", v)}
+              options={[{ value: "", label: "Select" }, ...FERMENTERS]}
+              placeholder="Select"
+            />
           </td>
           <td className="px-1.5 py-1.5">
             <input

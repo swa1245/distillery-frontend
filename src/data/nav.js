@@ -74,11 +74,11 @@ export const NAV_ITEMS = [
     name: "Fermentation",
     path: "/fermentation",
     icon: FlaskConical,
-    hint: "Fermenter overview and analysis",
+    hint: "Fermenter overview and logs",
     children: [
       { label: "Overview", path: "/fermentation", end: true },
-      { label: "Cell Culturing", path: "/fermentation/cell-culturing" },
-      { label: "Analysis", path: "/fermentation/analysis" },
+      { label: "Prefermenter", path: "/fermentation/cell-culturing" },
+      { label: "Fermenter", path: "/fermentation/analysis" },
       { label: "Summary", path: "/fermentation/summary" },
       { label: "Performance & Analytics", path: "/fermentation/performance" },
     ],
@@ -91,6 +91,7 @@ export const NAV_ITEMS = [
     children: [
       { label: "Overview", path: "/laboratory", end: true },
       { label: "Register", path: "/laboratory/register" },
+      { label: "Analysis", path: "/laboratory/analysis" },
     ],
   },
   {

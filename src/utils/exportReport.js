@@ -459,3 +459,446 @@ export function downloadExcelTable({ fileName, title, companyName, headers, rows
   a.remove();
   URL.revokeObjectURL(url);
 }
+
+function triggerBlobDownload(blob, fileName) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = fileName;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+function lineChartSvg({ labels = [], series = [], width = 640, height = 200 }) {
+  const pad = { l: 36, r: 14, t: 16, b: 28 };
+  const innerW = width - pad.l - pad.r;
+  const innerH = height - pad.t - pad.b;
+  const all = series.flatMap((s) => s.data || []);
+  const min = Math.min(...all);
+  const max = Math.max(...all);
+  const span = max - min || 1;
+  const toXY = (data) =>
+    data.map((v, i) => {
+      const x = pad.l + (i / Math.max(data.length - 1, 1)) * innerW;
+      const y = pad.t + innerH - ((v - min) / span) * innerH;
+      return [x, y];
+    });
+  const grid = [0, 0.5, 1]
+    .map((t) => {
+      const y = pad.t + innerH * (1 - t);
+      const val = min + span * t;
+      return `<line x1="${pad.l}" x2="${width - pad.r}" y1="${y}" y2="${y}" stroke="#e8eef5" stroke-width="1"/>
+        <text x="${pad.l - 6}" y="${y + 3}" text-anchor="end" fill="#94a3b8" font-size="9" font-weight="700">${val.toFixed(2)}</text>`;
+    })
+    .join("");
+  const lines = series
+    .map((s) => {
+      const pts = toXY(s.data || []);
+      const poly = pts.map((p) => p.join(",")).join(" ");
+      const dots = pts
+        .map(([x, y]) => `<circle cx="${x}" cy="${y}" r="3" fill="#fff" stroke="${s.color}" stroke-width="2"/>`)
+        .join("");
+      return `<polyline points="${poly}" fill="none" stroke="${s.color}" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/>${dots}`;
+    })
+    .join("");
+  const xLabels = labels
+    .map((lab, i) => {
+      const x = pad.l + (i / Math.max(labels.length - 1, 1)) * innerW;
+      return `<text x="${x}" y="${height - 8}" text-anchor="middle" fill="#94a3b8" font-size="9" font-weight="700">${xmlEscape(lab)}</text>`;
+    })
+    .join("");
+  return `<svg viewBox="0 0 ${width} ${height}" width="100%" height="${height}" xmlns="http://www.w3.org/2000/svg">${grid}${lines}${xLabels}</svg>`;
+}
+
+function columnTankSvg() {
+  return `<svg viewBox="0 0 56 88" width="44" height="70" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <rect x="18" y="2" width="20" height="8" rx="2" fill="#64748b"/>
+    <rect x="12" y="10" width="32" height="72" rx="10" fill="#eef4fb" stroke="#94a3b8" stroke-width="1.6"/>
+    <rect x="15" y="38" width="26" height="41" rx="8" fill="#3b82f6" opacity="0.88"/>
+    <rect x="22" y="82" width="12" height="5" rx="1.5" fill="#64748b"/>
+  </svg>`;
+}
+
+/**
+ * Downloads a print-ready HTML dashboard report (open in browser → Print / Save as PDF).
+ * Typography matches the Distiller app (Plus Jakarta Sans).
+ * @param {{
+ *  fileName?: string,
+ *  companyName?: string,
+ *  title: string,
+ *  subtitle?: string,
+ *  meta?: Array<{label: string, value: string}>,
+ *  kpis?: Array<{title: string, value: string, unit?: string, sub?: string}>,
+ *  sections?: Array<{
+ *    title: string,
+ *    kind?: "table" | "status" | "cards" | "alerts" | "columns" | "chart" | "html",
+ *    headers?: string[],
+ *    rows?: any[][],
+ *    items?: any[],
+ *    cards?: Array<{label: string, value: string, sub?: string, badge?: string}>,
+ *    labels?: string[],
+ *    series?: Array<{label: string, color: string, data: number[]}>,
+ *    html?: string,
+ *    highlightLast?: boolean,
+ *  }>,
+ *  footerNote?: string,
+ * }} opts
+ */
+export function downloadDashboardHtmlReport(opts = {}) {
+  const exportedAt = new Date().toLocaleString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  const company = xmlEscape(opts.companyName || "Digital Distillery");
+  const title = xmlEscape(opts.title || "Dashboard Report");
+  const subtitle = xmlEscape(opts.subtitle || `Exported ${exportedAt}`);
+  const meta = (opts.meta || [])
+    .map(
+      (m) =>
+        `<div class="meta-pill"><span>${xmlEscape(m.label)}</span><strong>${xmlEscape(m.value)}</strong></div>`
+    )
+    .join("");
+
+  const kpis = (opts.kpis || [])
+    .map(
+      (k) => `<article class="kpi">
+      <p class="kpi-label">${xmlEscape(k.title)}</p>
+      <p class="kpi-value">${xmlEscape(k.value)}${k.unit ? `<span>${xmlEscape(k.unit)}</span>` : ""}</p>
+      ${k.sub ? `<p class="kpi-sub">${xmlEscape(k.sub)}</p>` : ""}
+    </article>`
+    )
+    .join("");
+
+  const sections = (opts.sections || [])
+    .map((sec) => {
+      const head = `<div class="sec-head"><h2>${xmlEscape(sec.title)}</h2></div>`;
+      if (sec.kind === "chart") {
+        const legend = (sec.series || [])
+          .map(
+            (s) =>
+              `<span class="legend"><i style="background:${s.color}"></i>${xmlEscape(s.label)}</span>`
+          )
+          .join("");
+        return `<section class="card">${head}<div class="legend-row">${legend}</div>${lineChartSvg({
+          labels: sec.labels || [],
+          series: sec.series || [],
+        })}</section>`;
+      }
+      if (sec.kind === "cards") {
+        const cards = (sec.cards || [])
+          .map(
+            (c) => `<div class="sum-card">
+            <p class="kpi-label">${xmlEscape(c.label)}</p>
+            <p class="sum-value">${xmlEscape(c.value)}</p>
+            ${c.sub ? `<p class="kpi-sub">${xmlEscape(c.sub)}</p>` : ""}
+            ${c.badge ? `<span class="badge">${xmlEscape(c.badge)}</span>` : ""}
+          </div>`
+          )
+          .join("");
+        return `<section class="card">${head}<div class="sum-grid">${cards}</div></section>`;
+      }
+      if (sec.kind === "alerts") {
+        const list = (sec.items || [])
+          .map(
+            (a) => `<li class="alert ${a.level === "high" ? "high" : "warn"}">
+            <strong>${xmlEscape(a.title)}</strong>
+            <span>${xmlEscape(a.detail || "")}</span>
+            <em>${xmlEscape(a.time || "")}</em>
+          </li>`
+          )
+          .join("");
+        return `<section class="card">${head}<ul class="alerts">${list}</ul></section>`;
+      }
+      if (sec.kind === "columns" || sec.kind === "status") {
+        const items = sec.items || [];
+        const tanks = items
+          .map(
+            (c, i) => `<div class="col-item">
+            <span class="run-pill">Running</span>
+            <div class="tank-wrap">${columnTankSvg()}</div>
+            <strong>${xmlEscape(c.name)}</strong>
+            <small>${
+              c.hideTemp
+                ? "—"
+                : `Top ${xmlEscape(String(c.top ?? "—"))}°C <span class="dot">·</span> Btm ${xmlEscape(
+                    String(c.bottom ?? "—")
+                  )}°C`
+            }</small>
+            ${i < items.length - 1 ? `<span class="flow-arrow" aria-hidden="true">→</span>` : ""}
+          </div>`
+          )
+          .join("");
+        const live = items
+          .map(
+            (c) => `<li>
+            <span class="live-name">${xmlEscape(c.name)}</span>
+            <span class="live-state"><i></i>Running</span>
+          </li>`
+          )
+          .join("");
+        return `<section class="card columns-card">
+          ${head}
+          <div class="columns-layout">
+            <div class="col-row">${tanks}</div>
+            <aside class="live-panel">
+              <h3>Live Status</h3>
+              <ul>${live}</ul>
+            </aside>
+          </div>
+          <div class="status-banner">Overall Status · All Systems Normal</div>
+        </section>`;
+      }
+      if (sec.kind === "html") {
+        return `<section class="card">${head}${sec.html || ""}</section>`;
+      }
+      const headers = sec.headers || [];
+      const rows = sec.rows || [];
+      const th = headers.map((h) => `<th>${xmlEscape(h)}</th>`).join("");
+      const tr = rows
+        .map((row, ri) => {
+          const cls = ri === rows.length - 1 && sec.highlightLast ? ' class="avg"' : "";
+          return `<tr${cls}>${(row || []).map((cell) => `<td>${xmlEscape(cell)}</td>`).join("")}</tr>`;
+        })
+        .join("");
+      return `<section class="card">${head}<div class="table-wrap"><table><thead><tr>${th}</tr></thead><tbody>${tr}</tbody></table></div></section>`;
+    })
+    .join("");
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>${title}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --ink: #0f2744;
+      --muted: #64748b;
+      --muted-2: #94a3b8;
+      --line: #e2e8f0;
+      --soft: #f4f7f8;
+      --brand: #2563eb;
+      --brand-ui: #3b74e8;
+      --sky: #eff6ff;
+      --warn: #d97706;
+      --high: #e11d48;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Plus Jakarta Sans", system-ui, sans-serif;
+      color: var(--ink);
+      background: #dedcd9;
+      -webkit-font-smoothing: antialiased;
+    }
+    .page { max-width: 1120px; margin: 0 auto; padding: 20px 18px 40px; }
+    .toolbar {
+      display: flex; gap: 10px; justify-content: flex-end; margin-bottom: 12px;
+    }
+    .toolbar button {
+      border: 0; border-radius: 12px; padding: 10px 16px; font-weight: 700; cursor: pointer;
+      background: var(--brand-ui); color: #fff; font-size: 12px;
+      font-family: inherit; letter-spacing: 0.01em;
+    }
+    .toolbar button.secondary {
+      background: #fff; color: var(--brand-ui); border: 1px solid #bfdbfe;
+    }
+    .hero {
+      border-radius: 16px;
+      overflow: hidden;
+      background: linear-gradient(135deg, #163a66 0%, #1d4ed8 52%, #0ea5e9 125%);
+      color: #fff;
+      padding: 22px 24px;
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+      margin-bottom: 14px;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    .hero .eyebrow {
+      font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; font-weight: 800;
+      color: rgba(255,255,255,0.78);
+    }
+    .hero h1 {
+      margin: 4px 0 2px; font-size: 24px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.15;
+    }
+    .hero p { margin: 0; opacity: 0.88; font-size: 13px; font-weight: 500; }
+    .meta-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+    .meta-pill {
+      background: rgba(255,255,255,0.14); border: 1px solid rgba(255,255,255,0.18);
+      border-radius: 999px; padding: 6px 12px; font-size: 11px; display: flex; gap: 8px; align-items: center;
+    }
+    .meta-pill span {
+      opacity: 0.78; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; font-size: 9px;
+    }
+    .meta-pill strong { font-weight: 800; }
+    .kpi-grid {
+      display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; margin-bottom: 12px;
+    }
+    .kpi, .card {
+      background: #fff; border: 1px solid rgba(226, 232, 240, 0.9); border-radius: 16px;
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
+    }
+    .kpi { padding: 14px; }
+    .kpi-label {
+      margin: 0; font-size: 10px; font-weight: 800; letter-spacing: 0.08em;
+      text-transform: uppercase; color: var(--muted-2);
+    }
+    .kpi-value {
+      margin: 6px 0 0; font-size: 22px; font-weight: 800; letter-spacing: -0.03em;
+      color: var(--ink); line-height: 1.1; font-variant-numeric: tabular-nums;
+    }
+    .kpi-value span { margin-left: 4px; font-size: 11px; color: var(--muted-2); font-weight: 700; }
+    .kpi-sub { margin: 4px 0 0; font-size: 10px; color: var(--muted-2); font-weight: 700; }
+    .card { padding: 16px; margin-bottom: 12px; }
+    .sec-head { margin-bottom: 12px; }
+    .sec-head h2 {
+      margin: 0; color: var(--ink); font-size: 13px; font-weight: 800;
+      letter-spacing: -0.01em; line-height: 1.2;
+    }
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    th {
+      text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em;
+      color: var(--muted-2); padding: 8px 8px 10px; border-bottom: 1px solid var(--line);
+      font-weight: 800;
+    }
+    td {
+      padding: 9px 8px; border-bottom: 1px solid #f1f5f9; font-weight: 600; color: #334155;
+      font-variant-numeric: tabular-nums;
+    }
+    tr td:first-child { color: var(--ink); font-weight: 800; }
+    tr.avg td { background: rgba(239, 246, 255, 0.85); color: var(--brand); font-weight: 800; }
+    .columns-layout {
+      display: grid; grid-template-columns: 1.75fr 0.75fr; gap: 14px; align-items: stretch;
+    }
+    .col-row {
+      display: flex; flex-wrap: nowrap; gap: 4px; justify-content: space-between; align-items: flex-end;
+      overflow-x: auto; padding-bottom: 2px;
+    }
+    .col-item {
+      position: relative; flex: 1; min-width: 96px; text-align: center;
+      display: flex; flex-direction: column; align-items: center;
+    }
+    .col-item strong {
+      display: block; margin-top: 6px; font-size: 11px; font-weight: 800; color: var(--ink); line-height: 1.2;
+    }
+    .col-item small {
+      color: #64748b; font-size: 10px; font-weight: 700; margin-top: 2px; line-height: 1.25;
+    }
+    .col-item small .dot { color: #cbd5e1; margin: 0 2px; }
+    .run-pill {
+      display: inline-block; background: #f0f9ff; color: #1d4ed8; border-radius: 999px;
+      padding: 2px 8px; font-size: 9px; font-weight: 800; margin-bottom: 6px;
+    }
+    .tank-wrap { display: flex; justify-content: center; line-height: 0; }
+    .flow-arrow {
+      position: absolute; right: -8px; bottom: 52px; font-size: 16px; font-weight: 800; color: #cbd5e1;
+      pointer-events: none;
+    }
+    .live-panel {
+      border: 1px solid var(--line); border-radius: 14px; padding: 12px 12px 10px; background: #fff;
+    }
+    .live-panel h3 {
+      margin: 0 0 10px; font-size: 13px; font-weight: 800; color: var(--ink); letter-spacing: -0.01em;
+    }
+    .live-panel ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+    .live-panel li {
+      display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    }
+    .live-name { font-size: 12px; font-weight: 700; color: var(--ink); }
+    .live-state {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 11px; font-weight: 800; color: #2563eb;
+    }
+    .live-state i {
+      width: 8px; height: 8px; border-radius: 999px; background: #0ea5e9; display: inline-block;
+    }
+    .status-banner {
+      margin-top: 14px; text-align: center; background: #f0f9ff; color: #1d4ed8;
+      border-radius: 12px; padding: 10px 12px; font-size: 12px; font-weight: 800;
+    }
+    .sum-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .sum-card { background: var(--soft); border-radius: 12px; padding: 12px; }
+    .sum-value {
+      margin: 6px 0 0; font-size: 16px; font-weight: 800; font-variant-numeric: tabular-nums;
+    }
+    .badge {
+      display: inline-block; margin-top: 6px; background: #f0f9ff; color: #1d4ed8;
+      border-radius: 999px; padding: 2px 8px; font-size: 10px; font-weight: 800;
+    }
+    .alerts { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+    .alert {
+      display: grid; gap: 2px; padding: 10px 12px; border-radius: 12px; border-left: 4px solid var(--warn);
+      background: #fffbeb;
+    }
+    .alert.high { border-left-color: var(--high); background: #fff1f2; }
+    .alert strong { font-size: 12px; font-weight: 800; }
+    .alert span, .alert em {
+      font-size: 10px; color: var(--muted); font-style: normal; font-weight: 600;
+    }
+    .legend-row { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 8px; }
+    .legend {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 10px; font-weight: 700; color: #64748b;
+    }
+    .legend i { width: 14px; height: 3px; border-radius: 99px; display: inline-block; }
+    .footer {
+      margin-top: 6px; color: var(--muted-2); font-size: 10px; font-weight: 700;
+      display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+    }
+    @media (max-width: 960px) {
+      .kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .columns-layout { grid-template-columns: 1fr; }
+      .flow-arrow { display: none; }
+    }
+    @media print {
+      body { background: #fff; }
+      .toolbar { display: none !important; }
+      .page { max-width: none; padding: 0; }
+      .hero, .card, .kpi { box-shadow: none; }
+      .card, .kpi, .columns-layout { break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="toolbar">
+      <button class="secondary" type="button" onclick="window.close()">Close</button>
+      <button type="button" onclick="window.print()">Print / Save PDF</button>
+    </div>
+    <header class="hero">
+      <div class="eyebrow">${company}</div>
+      <h1>${title}</h1>
+      <p>${subtitle}</p>
+      <div class="meta-row">${meta}</div>
+    </header>
+    ${kpis ? `<div class="kpi-grid">${kpis}</div>` : ""}
+    ${sections}
+    <div class="footer">
+      <span>${xmlEscape(opts.footerNote || `${opts.companyName || "Digital Distillery"} · Distillation overview`)}</span>
+      <span>Generated ${xmlEscape(exportedAt)}</span>
+    </div>
+  </div>
+</body>
+</html>`;
+
+  const safeName = String(opts.fileName || opts.title || "Dashboard_Report")
+    .replace(/[^\w\-]+/g, "_")
+    .replace(/_+/g, "_");
+  const fileName = safeName.toLowerCase().endsWith(".html") ? safeName : `${safeName}.html`;
+  triggerBlobDownload(new Blob([html], { type: "text/html;charset=utf-8" }), fileName);
+
+  const win = window.open("", "_blank");
+  if (win) {
+    win.document.open();
+    win.document.write(html);
+    win.document.close();
+  }
+}
