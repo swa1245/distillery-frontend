@@ -13,7 +13,7 @@ import { useAuth } from "../context/AuthContext";
 import DistillerDatePicker from "../components/DistillerDatePicker";
 import DistillerSelect from "../components/DistillerSelect";
 import { todayIso } from "../utils/datedSheetStore";
-import { downloadExcelTable } from "../utils/exportReport";
+import { downloadDashboardHtmlReport, downloadExcelTable } from "../utils/exportReport";
 import { BarSpark, LineChart, Sparkline } from "../components/dashboard/MiniCharts";
 
 const SHIFTS = [
@@ -262,12 +262,130 @@ export default function DistillationOverviewPage() {
   );
 
   const handleExport = () => {
+    const periodLabel = PERIODS.find((p) => p.value === period)?.label || "Today";
+    const shiftLabel = SHIFTS.find((s) => s.value === shift)?.label || `Shift ${shift}`;
+    const company = user?.organizationName || "Digital Distillery";
+
+    downloadDashboardHtmlReport({
+      fileName: `Distillation_Overview_${date}_${period}`,
+      companyName: company,
+      title: "Distillation Overview Report",
+      subtitle: "Real-time distillation columns, alcohol strength, and online analysis.",
+      meta: [
+        { label: "Date", value: date },
+        { label: "Period", value: periodLabel },
+        { label: "Shift", value: shiftLabel },
+        { label: "Prepared by", value: user?.username || "Operator" },
+      ],
+      kpis: view.kpis.map((k) => ({
+        title: k.title,
+        value: k.value,
+        unit: k.unit,
+        sub: k.sub,
+      })),
+      sections: [
+        {
+          title: "Column Overview & Live Status",
+          kind: "columns",
+          items: COLUMNS,
+        },
+        {
+          title: "Online Analysis — Alcohol Content (% v/v)",
+          kind: "table",
+          headers: ANALYSIS_HEADS,
+          rows: [...view.analysis, view.avg],
+          highlightLast: true,
+        },
+        {
+          title: "Key Parameters (Live)",
+          kind: "table",
+          headers: ["Parameter", "Unit", "Value", "Range", "Status"],
+          rows: KEY_PARAMS.map((p) => [p.name, p.unit, p.value, p.range, p.ok ? "In range" : "Out of range"]),
+        },
+        {
+          title: `Alcohol Strength Trend · ${view.chartRange}`,
+          kind: "chart",
+          labels: view.labels,
+          series: [
+            { label: "Absolute Alcohol (%)", color: "#3b82f6", data: view.trend.ena },
+            { label: "RS Top (%)", color: "#22c55e", data: view.trend.rs },
+            { label: "FOC Top (%)", color: "#8b5cf6", data: view.trend.foc },
+          ],
+        },
+        {
+          title: view.summaryTitle,
+          kind: "cards",
+          cards: [
+            { label: "AA Production", value: view.summary.aa.value, sub: view.summary.aa.sub },
+            { label: "Steam Consumption", value: view.summary.steam.value, sub: view.summary.steam.sub },
+            {
+              label: "Syrup Brix Avg",
+              value: view.summary.brix.value,
+              sub: view.summary.brix.sub,
+              badge: view.summary.brix.badge,
+            },
+            { label: "Downtime", value: view.summary.down, sub: "This period" },
+          ],
+        },
+        {
+          title: "Recent Alerts",
+          kind: "alerts",
+          items: ALERTS,
+        },
+      ],
+      footerNote: `${company} · Distillation overview dashboard`,
+    });
+
     downloadExcelTable({
-      title: "Distillation Overview — Online Analysis",
-      headers: ANALYSIS_HEADS,
-      rows: [...view.analysis, view.avg],
-      sheetName: "Online Analysis",
-      subtitle: `${PERIODS.find((p) => p.value === period)?.label || "Today"}  ·  Shift ${shift}`,
+      fileName: `Distillation_Overview_${date}_${period}`,
+      title: "Distillation Overview — Full Dashboard",
+      companyName: company,
+      sheetName: "Distillation",
+      subtitle: `${periodLabel}  ·  ${shiftLabel}  ·  ${date}`,
+      headers: ["Section", "Item", "Value", "Unit / Detail", "Status"],
+      groups: [
+        {
+          title: "KPI Snapshot",
+          rows: view.kpis.map((k) => ["KPI", k.title, k.value, k.unit, k.sub]),
+        },
+        {
+          title: "Column Status",
+          rows: COLUMNS.map((c) => [
+            "Column",
+            c.name,
+            c.hideTemp ? "—" : `${c.top} / ${c.bottom}`,
+            c.hideTemp ? "MSDH" : "Top / Bottom °C",
+            "Running",
+          ]),
+        },
+        {
+          title: "Online Analysis",
+          rows: [...view.analysis, view.avg].map((row) => [
+            "Analysis",
+            row[0],
+            row.slice(1, -1).join(" | "),
+            "Alcohol / losses",
+            row[row.length - 1] || "—",
+          ]),
+        },
+        {
+          title: "Key Parameters",
+          rows: KEY_PARAMS.map((p) => ["Parameter", p.name, p.value, `${p.unit} · ${p.range}`, p.ok ? "In range" : "Out of range"]),
+        },
+        {
+          title: view.summaryTitle,
+          rows: [
+            ["Summary", "AA Production", view.summary.aa.value, view.summary.aa.sub, `${view.summary.aa.delta}%`],
+            ["Summary", "Steam Consumption", view.summary.steam.value, view.summary.steam.sub, `${view.summary.steam.delta}%`],
+            ["Summary", "Syrup Brix Avg", view.summary.brix.value, view.summary.brix.sub, view.summary.brix.badge],
+            ["Summary", "Downtime", view.summary.down, "This period", "—"],
+          ],
+        },
+        {
+          title: "Recent Alerts",
+          rows: ALERTS.map((a) => ["Alert", a.title, a.detail, a.time, a.level === "high" ? "High" : "Warn"]),
+        },
+      ],
     });
   };
 

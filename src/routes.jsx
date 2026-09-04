@@ -19,6 +19,7 @@ import DistillationOperatingPage from "./pages/DistillationOperatingPage";
 import PlantDashboardPage from "./pages/PlantDashboardPage";
 import LabOverviewPage from "./pages/LabOverviewPage";
 import LabRegisterPage from "./pages/LabRegisterPage";
+import LabHplcAnalysisPage from "./pages/LabHplcAnalysisPage";
 import DprOverviewPage from "./pages/DprOverviewPage";
 import DprSectionPage from "./pages/DprSectionPage";
 import StoreOverviewPage from "./pages/StoreOverviewPage";
@@ -96,6 +97,7 @@ export default function RoutesConfig() {
         <Route path="live-status" element={<Navigate to="/dashboard" replace />} />
         <Route path="laboratory" element={<LabOverviewPage />} />
         <Route path="laboratory/register" element={<LabRegisterPage />} />
+        <Route path="laboratory/analysis" element={<LabHplcAnalysisPage />} />
         <Route path="distillery" element={<DistillationPortalPage />} />
         <Route path="distillery/operating-parameters" element={<DistillationOperatingPage />} />
         <Route path="distillery/ethanol-analysis" element={<Navigate to="/distillery" replace />} />

@@ -34,18 +34,13 @@ const HPLC_COLS = [
   { key: "lacticAcidPct", label: "Lactic acid (% w/w)" },
   { key: "glycerolPct", label: "Glycerol (% w/w)" },
   { key: "aceticAcidPct", label: "Acetic acid (% w/w)" },
-  { key: "ethanolPct", label: "Ethanol (% w/w)" },
+  { key: "ethanolPct", label: "Ethanol (% v/v)" },
 ];
 
 const INPUT_COLS = [
-  { key: "gaLiquid", label: "GA liquid", text: true },
-  { key: "gaKg", label: "GA (kg)" },
-  { key: "antimicrobialL", label: "Antimicrobial (L)" },
-  { key: "ureaKg", label: "Urea (kg)" },
-  { key: "mgso4Kg", label: "MgSO4 (kg)" },
-  { key: "znso4Kg", label: "ZnSO4 (kg)" },
-  { key: "boosterKg", label: "Booster (kg)" },
-  { key: "antifoam", label: "Antifoam" },
+  { key: "distillaseCs", label: "Distillase CS" },
+  { key: "promoterG", label: "Promoter G" },
+  { key: "sctLactroll", label: "SCT - Lactroll" },
 ];
 
 const ALL_DATA_COLS = [...PROCESS_COLS, ...HPLC_COLS, ...INPUT_COLS];
@@ -54,7 +49,7 @@ const FERM_COL_COUNT = 5 + FERM_COLS.length + 1;
 const HPLC_COL_COUNT = 4 + HPLC_COLS.length + 1;
 
 const VIEW_OPTIONS = [
-  { value: "fermentation", label: "Fermentation" },
+  { value: "fermentation", label: "Fermenter" },
   { value: "hplc", label: "HPLC" },
 ];
 
@@ -154,7 +149,7 @@ export default function FermentationAnalysisPage() {
   const orgName = user?.organizationName || "Digital Distillery";
   const isHplc = view === "hplc";
   const activeKey = sheetKey(view);
-  const reportLabel = isHplc ? "HPLC" : "Fermentation";
+  const reportLabel = isHplc ? "HPLC" : "Fermenter";
 
   const refreshDates = (key = activeKey) => setSavedDates(listViewDates(loadViewStore(), key));
 
@@ -189,7 +184,10 @@ export default function FermentationAnalysisPage() {
     return rows.filter((row) => {
       if (typeFilter && row.fermenterNo !== typeFilter) return false;
       if (!q) return true;
-      return [row.time, row.fermenterNo, row.status, row.gaLiquid].join(" ").toLowerCase().includes(q);
+      return [row.time, row.fermenterNo, row.status, row.distillaseCs, row.promoterG, row.sctLactroll]
+        .join(" ")
+        .toLowerCase()
+        .includes(q);
     });
   }, [rows, search, typeFilter]);
 
@@ -298,7 +296,7 @@ export default function FermentationAnalysisPage() {
                   Fermentation
                 </p>
                 <h1 className="text-xl sm:text-2xl font-black tracking-tight leading-tight">
-                  Fermentation Analysis Report
+                  Fermenter Report
                 </h1>
                 <p className="mt-0.5 text-xs font-semibold text-white/70 truncate">
                   {orgName} · {reportLabel}

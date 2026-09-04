@@ -14,51 +14,97 @@ const STORAGE_KEY = "distiller_liquefaction_table";
 const cellInput =
   "w-full min-w-[4.5rem] rounded-md border border-sky-100 bg-white px-1.5 py-1.5 text-[12px] font-semibold text-stone-800 outline-none focus:border-[#2563eb] focus:ring-1 focus:ring-[#2563eb]/20";
 
-const IODINE_TEST_OPTIONS = ["PASS", "FAIL"];
+const IODINE_OPTIONS = ["POSITIVE", "NEGATIVE"];
+const FERMENTERS = ["F1", "F2", "F3", "F4", "F5", "F6"];
 
-const LIQUEFACTION_COLS = [
-  { key: "flourTph", label: "Flour (TPH)" },
-  { key: "thinSlopLph", label: "Thin slop (LPH)" },
-  { key: "processWaterLph", label: "Process water (LPH)" },
-  { key: "lessCondensateLph", label: "Less condensate (LPH)" },
-  { key: "leesLph", label: "Lees (LPH)" },
-  { key: "dsPct", label: "DS (%)" },
-  { key: "gravityFlt", label: "Gravity in FLT" },
-  { key: "ph", label: "pH" },
-  { key: "rs", label: "RS" },
-  { key: "iodineTest", label: "Iodine test", type: "select", options: IODINE_TEST_OPTIONS },
+const TANK_SUBCOLS = [
+  { suffix: "Temp", label: "Temp" },
+  { suffix: "Level", label: "Level" },
+  { suffix: "Sg", label: "Specific gravity" },
+  { suffix: "Ph", label: "pH" },
 ];
+
+function tankCols(prefix, extra = []) {
+  return [
+    ...TANK_SUBCOLS.map((s) => ({
+      key: `${prefix}${s.suffix}`,
+      label: s.label,
+      avg: true,
+    })),
+    ...extra,
+  ];
+}
+
+/** Liquefaction flat + grouped column model */
+const FLOW_COLS = [
+  { key: "flourTph", label: "Flour (TPH)", avg: true },
+  { key: "thinSlopLph", label: "Thin slop (LPH)", avg: true },
+  { key: "processWaterLph", label: "Process water (LPH)", avg: true },
+  { key: "lessCondensateLph", label: "Less condensate (LPH)", avg: true },
+  { key: "leesLph", label: "Lees (LPH)", avg: true },
+];
+
+const AFTER_IODINE_COLS = [
+  { key: "slurryFlourRate", label: "Slurry flour rate", avg: true },
+];
+
+const ENZYME_COLS = [
+  { key: "enzymeBrand", label: "Enzyme brand", avg: false, input: "text" },
+  { key: "enzymeQty", label: "Enzyme qty", avg: true },
+];
+
+const ST_COLS = tankCols("st");
+const LT1_COLS = tankCols("lt1");
+const LT2_COLS = tankCols("lt2", [
+  { key: "lt2Ds", label: "DS", avg: true },
+  { key: "lt2Rs", label: "RS", avg: true },
+  {
+    key: "lt2Iodine",
+    label: "Iodine test",
+    type: "select",
+    options: IODINE_OPTIONS,
+    avg: false,
+  },
+]);
+
+const PASS_FERMENTER_COL = {
+  key: "passFermenter",
+  label: "Pass Fermenter",
+  type: "select",
+  options: FERMENTERS,
+  avg: false,
+};
+
+const LIQ_GROUPS = [
+  { id: "flow", label: "Process rates", cols: FLOW_COLS, tone: "bg-[#2563eb]" },
+  { id: "slurry", label: "Slurry", cols: AFTER_IODINE_COLS, tone: "bg-[#1d4ed8]" },
+  { id: "enzyme", label: "Enzyme", cols: ENZYME_COLS, tone: "bg-[#2563eb]" },
+  { id: "st", label: "ST", cols: ST_COLS, tone: "bg-[#3b74e8]" },
+  { id: "lt1", label: "LT1", cols: LT1_COLS, tone: "bg-[#3b74e8]" },
+  { id: "lt2", label: "LT2", cols: LT2_COLS, tone: "bg-[#1d4ed8]" },
+  { id: "pass", label: "Pass", cols: [PASS_FERMENTER_COL], tone: "bg-[#0f2744]" },
+];
+
+const LIQUEFACTION_COLS = LIQ_GROUPS.flatMap((g) => g.cols);
 
 const HPLC_COLS = [
-  { key: "dp4Pct", label: "DP4+ (% w/w)" },
-  { key: "dp3Pct", label: "DP3 (% w/w)" },
-  { key: "dp2Pct", label: "DP2 (% w/w)" },
-  { key: "glucosePct", label: "Glucose (% w/w)" },
-  { key: "fructosePct", label: "Fructose (% w/w)" },
-  { key: "lacticAcidPct", label: "Lactic acid (% w/w)" },
-  { key: "glycerolPct", label: "Glycerol (% w/w)" },
-  { key: "aceticAcidPct", label: "Acetic acid (% w/w)" },
-  { key: "ethanolPct", label: "Ethanol (% w/w)" },
+  { key: "dp4Pct", label: "DP4+ (% w/w)", avg: true },
+  { key: "dp3Pct", label: "DP3 (% w/w)", avg: true },
+  { key: "dp2Pct", label: "DP2 (% w/w)", avg: true },
+  { key: "glucosePct", label: "Glucose (% w/w)", avg: true },
+  { key: "fructosePct", label: "Fructose (% w/w)", avg: true },
+  { key: "lacticAcidPct", label: "Lactic acid (% w/w)", avg: true },
+  { key: "glycerolPct", label: "Glycerol (% w/w)", avg: true },
+  { key: "aceticAcidPct", label: "Acetic acid (% w/w)", avg: true },
+  { key: "ethanolPct", label: "Ethanol (% v/v)", avg: true },
+  {
+    key: "passFermenter",
+    label: "Pass Fermenter",
+    type: "select",
+    options: FERMENTERS,
+    avg: false,
+  },
 ];
-
-const VIEWS = {
-  liquefaction: {
-    label: "Liquefaction",
-    group: "Liquefaction data",
-    cols: LIQUEFACTION_COLS,
-    headerClass: "bg-[#2563eb]",
-    subHeaderClass: "bg-[#3b74e8]",
-    cellClass: "bg-[#eef3f9]",
-  },
-  hplc: {
-    label: "HPLC",
-    group: "HPLC data",
-    cols: HPLC_COLS,
-    headerClass: "bg-[#1d4ed8]",
-    subHeaderClass: "bg-[#2563eb]",
-    cellClass: "bg-[#e8f0fe]",
-  },
-};
 
 const VIEW_OPTIONS = [
   { value: "liquefaction", label: "Liquefaction" },
@@ -75,8 +121,12 @@ function sheetKey(view, hplcKind) {
   return "liquefaction";
 }
 
+function allFieldKeys() {
+  return [...LIQUEFACTION_COLS, ...HPLC_COLS].map((c) => c.key);
+}
+
 function emptyFields() {
-  return Object.fromEntries([...LIQUEFACTION_COLS, ...HPLC_COLS].map((c) => [c.key, ""]));
+  return Object.fromEntries(allFieldKeys().map((k) => [k, ""]));
 }
 
 function num(v) {
@@ -112,6 +162,12 @@ function blankRow(slNo, date = todayIso()) {
 
 function hydrateRow(row, date, slNo) {
   const base = blankRow(slNo, date);
+  const iodine =
+    row.iodineTest === "PASS"
+      ? "POSITIVE"
+      : row.iodineTest === "FAIL"
+        ? "NEGATIVE"
+        : row.iodineTest ?? "";
   return {
     ...base,
     ...row,
@@ -119,8 +175,15 @@ function hydrateRow(row, date, slNo) {
     id: row.id && String(row.id).startsWith("r-") ? row.id : base.id,
     date: row.date || date,
     time: row.time || "",
+    iodineTest: iodine,
+    lt2Ds: row.lt2Ds ?? row.dsPct ?? "",
+    lt2Rs: row.lt2Rs ?? row.rs ?? "",
+    lt2Iodine: row.lt2Iodine ?? "",
+    lt2Ph: row.lt2Ph ?? row.ph ?? "",
+    slurryFlourRate: row.slurryFlourRate ?? "",
     dp3Pct: row.dp3Pct ?? row.maltotriosePct ?? "",
     dp2Pct: row.dp2Pct ?? row.maltosePct ?? "",
+    // ethanolPct kept; label is now % v/v
   };
 }
 
@@ -154,6 +217,29 @@ function listViewDates(views, view) {
   return Object.keys(views?.[view] || {}).sort((a, b) => b.localeCompare(a));
 }
 
+function CellEditor({ col, value, onChange }) {
+  if (col.type === "select") {
+    return (
+      <DistillerSelect
+        compact
+        value={value || ""}
+        onChange={onChange}
+        options={[{ value: "", label: "Select" }, ...(col.options || [])]}
+        placeholder="Select"
+      />
+    );
+  }
+  return (
+    <input
+      className={cellInput}
+      inputMode={col.input === "text" ? undefined : "decimal"}
+      value={value ?? ""}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={col.label}
+    />
+  );
+}
+
 export default function LiquefactionAnalysisPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -166,12 +252,12 @@ export default function LiquefactionAnalysisPage() {
   const [status, setStatus] = useState("");
   const [statusType, setStatusType] = useState("ok");
   const orgName = user?.organizationName || "Digital Distillery";
-  const spec = VIEWS[view];
   const activeKey = sheetKey(view, hplcKind);
   const hplcKindLabel = hplcKind === "slurry" ? "Slurry" : "Water";
-  const reportLabel = view === "hplc" ? `HPLC · ${hplcKindLabel}` : spec.label;
-  const groupLabel = view === "hplc" ? `HPLC · ${hplcKindLabel}` : spec.group;
-  const dataCols = spec.cols;
+  const isLiq = view === "liquefaction";
+  const dataCols = isLiq ? LIQUEFACTION_COLS : HPLC_COLS;
+  const reportLabel = isLiq ? "Liquefaction" : `HPLC · ${hplcKindLabel}`;
+  const groupLabel = isLiq ? "Liquefaction data" : `HPLC · ${hplcKindLabel}`;
   const colCount = 3 + dataCols.length + 1;
 
   const refreshDates = (key = activeKey) => setSavedDates(listViewDates(loadViewStore(), key));
@@ -206,16 +292,28 @@ export default function LiquefactionAnalysisPage() {
     const q = search.trim().toLowerCase();
     if (!q) return rows;
     return rows.filter((row) =>
-      [row.time, row.date, ...dataCols.map((c) => row[c.key])].join(" ").toLowerCase().includes(q)
+      [row.time, row.date, row.passFermenter, ...dataCols.map((c) => row[c.key])]
+        .join(" ")
+        .toLowerCase()
+        .includes(q)
     );
   }, [rows, search, dataCols]);
 
   const handleExport = () => {
+    const headers = isLiq
+      ? [
+          "Sl. No.",
+          "Date",
+          "Time",
+          ...LIQ_GROUPS.flatMap((g) => g.cols.map((c) => (g.id === "st" || g.id === "lt1" || g.id === "lt2" ? `${g.label} ${c.label}` : c.label))),
+        ]
+      : ["Sl. No.", "Date", "Time", ...HPLC_COLS.map((c) => c.label)];
+
     downloadExcelTable({
       fileName: `${reportLabel.replace(/[·\s]+/g, "_")}_${filterDate}.xlsx`,
       title: `${reportLabel} current readings`,
       companyName: orgName,
-      headers: ["Sl. No.", "Date", "Time", ...dataCols.map((c) => c.label)],
+      headers,
       rows: filtered.map((row) => [row.slNo, formatDisplayDate(row.date), row.time, ...dataCols.map((c) => row[c.key])]),
       sheetName: reportLabel.replace(" · ", " ").slice(0, 31),
       subtitle: `${groupLabel}  ·  ${formatSavedDate(filterDate)}  ·  ${filtered.length} ${
@@ -241,7 +339,7 @@ export default function LiquefactionAnalysisPage() {
   const averages = useMemo(() => {
     const next = {};
     for (const col of dataCols) {
-      if (col.type === "select") {
+      if (!col.avg || col.type === "select") {
         next[col.key] = "—";
         continue;
       }
@@ -331,37 +429,99 @@ export default function LiquefactionAnalysisPage() {
           onSubTypeChange={setHplcKind}
           search={search}
           onSearchChange={setSearch}
-          searchPlaceholder="Search time or readings…"
+          searchPlaceholder="Search time, fermenter, readings…"
           onAddRow={addRow}
         />
 
         <div className="overflow-x-auto">
-          <table className="min-w-[1480px] w-full text-left text-[12px] border-collapse">
+          <table className="min-w-[2200px] w-full text-left text-[12px] border-collapse">
             <thead>
-              <tr className="bg-[#0f2744] text-white font-extrabold uppercase tracking-wider text-[10px]">
-                <th rowSpan={2} className="px-2 py-2.5 border-r border-white/10 w-12 text-center">
-                  Sl. No.
-                </th>
-                <th colSpan={2} className="px-3 py-2.5 text-center border-r border-white/10">
-                  Current readings
-                </th>
-                <th colSpan={dataCols.length} className={`px-3 py-2.5 text-center border-r border-white/10 ${spec.headerClass}`}>
-                  {groupLabel}
-                </th>
-                <th rowSpan={2} className="px-2 py-2.5 w-10" />
-              </tr>
-              <tr className="bg-[#163056] text-white font-extrabold uppercase tracking-wider text-[10px]">
-                <th className="px-3 py-2 border-r border-white/10 min-w-[148px]">Date</th>
-                <th className="px-3 py-2 border-r border-white/10 min-w-[138px]">Time</th>
-                {dataCols.map((col) => (
-                  <th
-                    key={col.key}
-                    className={`px-2 py-2 border-r border-white/10 ${spec.subHeaderClass} min-w-[110px] text-center`}
-                  >
-                    {col.label}
-                  </th>
-                ))}
-              </tr>
+              {isLiq ? (
+                <>
+                  <tr className="bg-[#0f2744] text-white font-extrabold uppercase tracking-wider text-[10px]">
+                    <th rowSpan={3} className="px-2 py-2.5 border-r border-white/10 w-12 text-center">
+                      Sl. No.
+                    </th>
+                    <th colSpan={2} rowSpan={2} className="px-3 py-2.5 text-center border-r border-white/10">
+                      Current readings
+                    </th>
+                    {LIQ_GROUPS.map((g) => (
+                      <th
+                        key={g.id}
+                        colSpan={g.cols.length}
+                        className={`px-3 py-2.5 text-center border-r border-white/10 ${g.tone}`}
+                      >
+                        {g.label}
+                      </th>
+                    ))}
+                    <th rowSpan={3} className="px-2 py-2.5 w-10" />
+                  </tr>
+                  <tr className="bg-[#163056] text-white font-extrabold uppercase tracking-wider text-[9px]">
+                    {LIQ_GROUPS.map((g) =>
+                      g.id === "st" || g.id === "lt1" || g.id === "lt2" ? (
+                        <th
+                          key={`${g.id}-sub`}
+                          colSpan={g.cols.length}
+                          className="px-2 py-1.5 text-center border-r border-white/10 bg-[#1e3a5f]"
+                        >
+                          {g.label} parameters
+                        </th>
+                      ) : (
+                        g.cols.map((col) => (
+                          <th
+                            key={col.key}
+                            rowSpan={2}
+                            className="px-2 py-2 border-r border-white/10 bg-[#1d4ed8] min-w-[100px] text-center align-bottom"
+                          >
+                            {col.label}
+                          </th>
+                        ))
+                      )
+                    )}
+                  </tr>
+                  <tr className="bg-[#1e3a5f] text-white font-extrabold uppercase tracking-wider text-[9px]">
+                    <th className="px-3 py-2 border-r border-white/10 min-w-[148px]">Date</th>
+                    <th className="px-3 py-2 border-r border-white/10 min-w-[138px]">Time</th>
+                    {LIQ_GROUPS.filter((g) => g.id === "st" || g.id === "lt1" || g.id === "lt2").flatMap((g) =>
+                      g.cols.map((col) => (
+                        <th
+                          key={col.key}
+                          className="px-2 py-2 border-r border-white/10 bg-[#2563eb] min-w-[96px] text-center"
+                        >
+                          {col.label}
+                        </th>
+                      ))
+                    )}
+                  </tr>
+                </>
+              ) : (
+                <>
+                  <tr className="bg-[#0f2744] text-white font-extrabold uppercase tracking-wider text-[10px]">
+                    <th rowSpan={2} className="px-2 py-2.5 border-r border-white/10 w-12 text-center">
+                      Sl. No.
+                    </th>
+                    <th colSpan={2} className="px-3 py-2.5 text-center border-r border-white/10">
+                      Current readings
+                    </th>
+                    <th colSpan={HPLC_COLS.length} className="px-3 py-2.5 text-center border-r border-white/10 bg-[#1d4ed8]">
+                      {groupLabel}
+                    </th>
+                    <th rowSpan={2} className="px-2 py-2.5 w-10" />
+                  </tr>
+                  <tr className="bg-[#163056] text-white font-extrabold uppercase tracking-wider text-[10px]">
+                    <th className="px-3 py-2 border-r border-white/10 min-w-[148px]">Date</th>
+                    <th className="px-3 py-2 border-r border-white/10 min-w-[138px]">Time</th>
+                    {HPLC_COLS.map((col) => (
+                      <th
+                        key={col.key}
+                        className="px-2 py-2 border-r border-white/10 bg-[#2563eb] min-w-[110px] text-center"
+                      >
+                        {col.label}
+                      </th>
+                    ))}
+                  </tr>
+                </>
+              )}
             </thead>
             <tbody>
               {filtered.length === 0 ? (
@@ -387,23 +547,17 @@ export default function LiquefactionAnalysisPage() {
                         />
                       </td>
                       {dataCols.map((col) => (
-                        <td key={col.key} className={`px-1.5 py-1.5 ${spec.cellClass}`}>
-                          {col.type === "select" ? (
-                            <DistillerSelect
-                              compact
-                              value={row[col.key] || ""}
-                              onChange={(v) => updateRow(row.id, col.key, v)}
-                              options={[{ value: "", label: "Select" }, ...(col.options || [])]}
-                              placeholder="Select"
-                            />
-                          ) : (
-                            <input
-                              className={cellInput}
-                              inputMode="decimal"
-                              value={row[col.key]}
-                              onChange={(e) => updateRow(row.id, col.key, e.target.value)}
-                            />
-                          )}
+                        <td
+                          key={col.key}
+                          className={`px-1.5 py-1.5 ${
+                            col.key === "passFermenter" ? "bg-[#e8f0fe]" : "bg-[#eef3f9]"
+                          }`}
+                        >
+                          <CellEditor
+                            col={col}
+                            value={row[col.key]}
+                            onChange={(v) => updateRow(row.id, col.key, v)}
+                          />
                         </td>
                       ))}
                       <td className="px-1 py-1.5 text-center">
