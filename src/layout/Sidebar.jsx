@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
-import { ChevronDown, FlaskConical, LogOut, Plus, User } from "lucide-react";
+import { ChevronDown, LogOut, Plus, User } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { NAV_ITEMS } from "../data/nav";
+import brandLogo from "../assets/biofuelpro-logo.png";
 
 function pathOf(to) {
   return String(to || "").split("?")[0];
@@ -35,7 +36,7 @@ function NavItem({ item }) {
       className={({ isActive }) =>
         `group flex items-center gap-3 px-3 py-2.5 rounded-[14px] text-[13px] font-bold transition-all duration-300 ease-out ${
           isActive
-            ? "bg-[#2563eb] text-white shadow-sm"
+            ? "bg-emerald-600 text-white shadow-sm"
             : "text-slate-300 hover:bg-white/10 hover:text-white"
         }`
       }
@@ -46,7 +47,7 @@ function NavItem({ item }) {
             className={`flex items-center justify-center w-8 h-8 rounded-lg shrink-0 transition-colors ${
               isActive
                 ? "bg-white/15 text-white"
-                : "bg-[#0e1a2e] text-slate-300 border border-white/10 group-hover:border-sky-300/30 group-hover:text-sky-100"
+                : "bg-[#0e1a2e] text-slate-300 border border-white/10 group-hover:border-emerald-300/30 group-hover:text-emerald-100"
             }`}
           >
             <Icon size={16} strokeWidth={isActive ? 2.4 : 2} />
@@ -118,8 +119,8 @@ function NestedNav({ item }) {
         <span
           className={`flex h-8 w-8 items-center justify-center rounded-[10px] shrink-0 transition-all duration-300 ${
             inSection
-              ? "bg-[#2563eb]/20 text-white"
-              : "bg-white/[0.06] text-slate-300 border border-white/10 group-hover:border-sky-300/30"
+              ? "bg-emerald-600/25 text-emerald-300"
+              : "bg-white/[0.06] text-slate-300 border border-white/10 group-hover:border-emerald-300/30"
           }`}
         >
           <Icon size={16} strokeWidth={inSection || open ? 2.4 : 2} />
@@ -148,7 +149,7 @@ function NestedNav({ item }) {
                     end={Boolean(child.end)}
                     className={`block rounded-[10px] px-3 py-1.5 text-[13px] font-medium tracking-tight transition-all duration-200 ${
                       active
-                        ? "bg-[#2563eb] text-white shadow-sm"
+                        ? "bg-emerald-600 text-white shadow-sm"
                         : "text-slate-300 hover:bg-white/[0.07] hover:text-white"
                     }`}
                   >
@@ -168,11 +169,11 @@ function NestedNav({ item }) {
                     onClick={() => setGroupId(expanded ? "" : group.id)}
                     className={`flex w-full items-center gap-2 rounded-[12px] px-3 py-2 text-[13px] font-bold tracking-tight transition-all duration-300 ease-out ${
                       expanded
-                        ? "bg-[#3b74e8] text-white shadow-[0_8px_16px_rgba(59,116,232,0.32)]"
+                        ? "bg-emerald-600 text-white shadow-[0_8px_16px_rgba(5,150,105,0.32)]"
                         : "bg-white/[0.06] text-white/85 hover:bg-white/[0.11]"
                     }`}
                   >
-                    <Plus size={15} strokeWidth={2.6} className={expanded ? "text-sky-100" : "text-white/55"} />
+                    <Plus size={15} strokeWidth={2.6} className={expanded ? "text-emerald-100" : "text-white/55"} />
                     {group.label}
                   </button>
 
@@ -191,7 +192,7 @@ function NestedNav({ item }) {
                               to={child.path}
                               className={`block rounded-[10px] px-3 py-1.5 text-[13px] font-medium tracking-tight transition-all duration-200 ${
                                 active
-                                  ? "bg-[#2563eb] text-white shadow-sm"
+                                  ? "bg-emerald-600 text-white shadow-sm"
                                   : "text-slate-300 hover:bg-white/[0.07] hover:text-white"
                               }`}
                             >
@@ -220,8 +221,8 @@ export default function Sidebar() {
     <aside className="w-[280px] bg-[#07111f] text-slate-50 h-screen flex flex-col border-r border-[#0f2744] relative z-30 shrink-0 font-jakarta">
       <div className="px-4 pt-4 pb-3 shrink-0">
         <div className="flex items-center gap-3 px-2.5 py-2.5 rounded-2xl bg-[#0e1a2e] border border-[#1a2d4a]">
-          <div className="p-2 bg-[#2563eb] text-white rounded-xl shadow-sm shrink-0">
-            <FlaskConical size={16} strokeWidth={2.2} />
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white shadow-sm">
+            <img src={brandLogo} alt="BioFuelPro" className="h-8 w-8 object-contain" />
           </div>
           <div className="min-w-0">
             <h1 className="text-[13px] font-extrabold tracking-tight text-slate-50 truncate">
@@ -258,7 +259,7 @@ export default function Sidebar() {
         <div className="rounded-xl bg-[#0e1a2e] border border-[#1a2d4a] p-2.5">
           <div className="flex items-center gap-2.5 mb-2">
             <div className="relative shrink-0">
-              <div className="w-8 h-8 rounded-lg bg-[#2563eb] text-white flex items-center justify-center font-extrabold text-xs">
+              <div className="w-8 h-8 rounded-lg bg-emerald-600 text-white flex items-center justify-center font-extrabold text-xs">
                 {user?.username ? user.username.charAt(0).toUpperCase() : <User size={14} />}
               </div>
               <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-[#0e1a2e]" />
@@ -267,7 +268,7 @@ export default function Sidebar() {
               <p className="text-xs font-extrabold text-slate-50 truncate leading-tight">
                 {user?.username || "Plant User"}
               </p>
-              <span className="inline-flex mt-1 text-[9px] font-extrabold tracking-wide px-1.5 py-0.5 rounded border bg-[#2563eb]/30 text-sky-200 border-[#2563eb]/50">
+              <span className="inline-flex mt-1 text-[9px] font-extrabold tracking-wide px-1.5 py-0.5 rounded border bg-emerald-600/30 text-emerald-200 border-emerald-500/50">
                 {user?.role || "User"}
               </span>
             </div>
