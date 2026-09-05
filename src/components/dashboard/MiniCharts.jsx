@@ -87,6 +87,8 @@ export function LineChart({
   targetLabel,
   showDots = false,
   highlightIndex = null,
+  /** When true, each series uses its own min/max (good for mixed units). */
+  independentScales = false,
   className = "",
 }) {
   const w = width;
@@ -98,16 +100,18 @@ export function LineChart({
   const sharedMin = domain?.[0] ?? (all.length ? Math.min(0, ...all) : 0);
   const sharedMax = domain?.[1] ?? (all.length ? Math.max(...all) : 1);
   const sharedSpan = sharedMax - sharedMin || 1;
-  // Multi-series charts always share one Y scale so lines compare correctly.
-  const useShared = Boolean(domain) || series.length > 1;
+  // Multi-series charts share one Y scale unless independentScales (mixed units).
+  const useShared = !independentScales && (Boolean(domain) || series.length > 1);
 
   const toXY = (data) => {
     const min = useShared ? sharedMin : Math.min(...data);
     const max = useShared ? sharedMax : Math.max(...data);
-    const span = max - min || 1;
+    const padFrac = useShared ? 0 : 0.12;
+    const span = (max - min) * (1 + padFrac * 2) || 1;
+    const lo = useShared ? min : min - (max - min) * padFrac;
     return data.map((v, i) => {
       const x = pad.l + (i / Math.max(data.length - 1, 1)) * innerW;
-      const y = pad.t + innerH - ((v - min) / span) * innerH;
+      const y = pad.t + innerH - ((v - lo) / span) * innerH;
       return [x, y];
     });
   };

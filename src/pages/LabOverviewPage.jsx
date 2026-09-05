@@ -1,8 +1,8 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  Bell,
   CheckCircle2,
+  Download,
   Plus,
   Search,
   TestTube2,
@@ -12,7 +12,9 @@ import {
 import { useAuth } from "../context/AuthContext";
 import DistillerDatePicker from "../components/DistillerDatePicker";
 import DistillerSelect from "../components/DistillerSelect";
+import NotificationBell from "../components/NotificationBell";
 import { todayIso } from "../utils/datedSheetStore";
+import { downloadExcelTable } from "../utils/exportReport";
 import { DonutChart, LineChart } from "../components/dashboard/MiniCharts";
 
 const SHIFTS = [
@@ -304,13 +306,20 @@ export default function LabOverviewPage() {
   const [period, setPeriod] = useState("today");
   const [cat, setCat] = useState("all");
   const [query, setQuery] = useState("");
-  const [bellOpen, setBellOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [flash, setFlash] = useState("");
   const view = VIEWS[period] || VIEWS.today;
   const name = firstName(user);
   const initials = name.slice(0, 1).toUpperCase();
+  const periodLabel = PERIODS.find((p) => p.value === period)?.label || "Today";
+  const shiftLabel = SHIFTS.find((s) => s.value === shift)?.label || `Shift ${shift}`;
   const totalSamples = Object.values(view.counts).reduce((a, b) => a + b, 0);
+
+  useEffect(() => {
+    setFlash(`Showing ${periodLabel} · ${shiftLabel} · ${date}`);
+    const t = window.setTimeout(() => setFlash(""), 2200);
+    return () => window.clearTimeout(t);
+  }, [date, shift, period, periodLabel, shiftLabel]);
 
   const summary = cat === "all" ? view.summary : view.summary.filter((r) => r.type === cat);
   const totals = summary.reduce(
@@ -326,77 +335,65 @@ export default function LabOverviewPage() {
   const oos = cat === "all" ? view.oos : view.oos.filter((r) => r.type === cat);
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return view.results.filter((row) => {
+    let rows = view.results.filter((row) => {
       if (cat !== "all" && row[1] !== cat) return false;
       if (!q) return true;
       return row.some((c) => String(c).toLowerCase().includes(q));
     });
-  }, [view.results, cat, query]);
+    // Demo shift window on results list
+    if (shift === "B") rows = rows.slice(Math.floor(rows.length / 3));
+    if (shift === "C") rows = rows.slice(Math.floor((rows.length * 2) / 3));
+    return rows;
+  }, [view.results, cat, query, shift]);
+
+  const labNotifs = useMemo(
+    () =>
+      view.oos.map((o, i) => ({
+        id: `lab-${o.id || i}`,
+        title: `OOS · ${o.param}`,
+        detail: `${o.id} · Result ${o.result} (spec ${o.spec})`,
+        time: periodLabel,
+        level: "high",
+      })),
+    [view.oos, periodLabel]
+  );
 
   const ping = (msg) => {
     setFlash(msg);
     window.setTimeout(() => setFlash(""), 2200);
   };
 
+  const handleExport = () => {
+    downloadExcelTable({
+      fileName: `Lab_Overview_${date}_${period}_Shift${shift}`,
+      title: "Lab & QC Overview",
+      sheetName: "Lab QC",
+      subtitle: `${periodLabel}  ·  ${shiftLabel}  ·  ${date}`,
+      headers: ["Sample ID", "Type", "Source", "Parameter", "Result", "Unit", "Spec", "Method", "Status", "When", "By"],
+      rows: results,
+    });
+  };
+
   return (
     <div className="min-h-full bg-stone-250 px-4 py-4 sm:px-6 lg:px-7">
       <header className="mb-4 rounded-2xl border border-stone-200/80 bg-white px-5 py-4 shadow-[0_8px_24px_rgba(15,23,42,0.04)]">
-        <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-[#2563eb]">Laboratory</p>
             <h1 className="mt-0.5 text-2xl font-black tracking-tight text-[#0f2744]">Lab & QC Overview</h1>
-            <p className="mt-0.5 text-sm font-medium text-stone-500">Real-time laboratory & quality control dashboard.</p>
+            <p className="mt-0.5 text-sm font-medium text-stone-500">
+              Real-time laboratory & quality control dashboard · {periodLabel} · Shift {shift} · {date}
+            </p>
+            {flash ? <p className="mt-1 text-[11px] font-bold text-[#3b74e8]">{flash}</p> : null}
           </div>
-          <div className="flex flex-wrap items-center justify-end gap-2.5">
-            <DistillerDatePicker value={date} onChange={setDate} compact className="w-[148px]" />
-            <DistillerSelect value={period} onChange={setPeriod} options={PERIODS} compact className="w-[158px]" />
-            <DistillerSelect value={shift} onChange={setShift} options={SHIFTS} compact className="w-[210px]" />
-            {searchOpen ? (
-              <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search samples…"
-                className="h-9 w-44 rounded-xl border border-stone-200 px-3 text-[12px] font-semibold outline-none focus:border-[#3b74e8]"
-              />
-            ) : (
-              <button
-                type="button"
-                onClick={() => setSearchOpen(true)}
-                className="flex h-9 w-9 items-center justify-center rounded-xl border border-stone-200 text-stone-600 hover:bg-stone-50"
-                aria-label="Search"
-              >
-                <Search size={15} />
-              </button>
-            )}
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setBellOpen((v) => !v)}
-                className="relative flex h-9 w-9 items-center justify-center rounded-xl border border-stone-200 text-stone-600 hover:bg-stone-50"
-                aria-label="Notifications"
-              >
-                <Bell size={15} />
-                <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 text-[9px] font-black text-white">
-                  {view.oos.length}
-                </span>
-              </button>
-              {bellOpen ? (
-                <ul className="absolute right-0 z-20 mt-2 w-64 overflow-hidden rounded-2xl border border-stone-200 bg-white py-1 shadow-lg">
-                  {view.oos.map((o) => (
-                    <li key={o.id} className="px-3 py-2 text-[12px] font-semibold text-stone-600">
-                      OOS {o.param} · {o.id}
-                    </li>
-                  ))}
-                </ul>
-              ) : null}
-            </div>
+          <div className="flex shrink-0 flex-nowrap items-center justify-end gap-2.5">
             <button
               type="button"
-              onClick={() => navigate("/laboratory/analysis")}
-              className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 text-[12px] font-bold text-emerald-700 hover:bg-emerald-100"
+              onClick={handleExport}
+              className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-sky-200 bg-white px-3 text-[12px] font-bold text-[#3b74e8] hover:bg-sky-50"
             >
-              <TestTube2 size={14} strokeWidth={2.4} />
-              HPLC Analysis
+              <Download size={14} strokeWidth={2.4} />
+              Download Report
             </button>
             <button
               type="button"
@@ -406,6 +403,7 @@ export default function LabOverviewPage() {
               <Plus size={14} strokeWidth={2.6} />
               New Sample
             </button>
+            <NotificationBell items={labNotifs} />
             <div className="flex items-center gap-2.5 rounded-xl border border-stone-200 bg-white py-1 pl-1 pr-3">
               <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#2563eb] text-xs font-black text-white">{initials}</span>
               <div className="min-w-0 leading-tight">
@@ -415,7 +413,36 @@ export default function LabOverviewPage() {
             </div>
           </div>
         </div>
-        {flash ? <p className="mt-2 text-right text-[11px] font-bold text-[#3b74e8]">{flash}</p> : null}
+        <div className="mt-3 flex flex-wrap items-center gap-2.5 border-t border-stone-100 pt-3">
+          <DistillerDatePicker value={date} onChange={setDate} compact className="w-[148px]" />
+          <DistillerSelect value={period} onChange={setPeriod} options={PERIODS} compact className="w-[158px]" />
+          <DistillerSelect value={shift} onChange={setShift} options={SHIFTS} compact className="w-[210px]" />
+          {searchOpen ? (
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search samples…"
+              className="h-9 w-44 rounded-xl border border-stone-200 px-3 text-[12px] font-semibold outline-none focus:border-[#3b74e8]"
+            />
+          ) : (
+            <button
+              type="button"
+              onClick={() => setSearchOpen(true)}
+              className="flex h-9 w-9 items-center justify-center rounded-xl border border-stone-200 text-stone-600 hover:bg-stone-50"
+              aria-label="Search"
+            >
+              <Search size={15} />
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => navigate("/laboratory/analysis")}
+            className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 text-[12px] font-bold text-emerald-700 hover:bg-emerald-100"
+          >
+            <TestTube2 size={14} strokeWidth={2.4} />
+            HPLC Analysis
+          </button>
+        </div>
       </header>
 
       <div className="grid grid-cols-2 gap-3 xl:grid-cols-6">

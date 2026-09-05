@@ -1,9 +1,10 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Activity,
   AlertTriangle,
   CalendarClock,
+  Download,
   Droplets,
   FlaskConical,
   Gauge,
@@ -16,7 +17,9 @@ import {
 import { useAuth } from "../context/AuthContext";
 import DistillerDatePicker from "../components/DistillerDatePicker";
 import DistillerSelect from "../components/DistillerSelect";
+import NotificationBell from "../components/NotificationBell";
 import { todayIso } from "../utils/datedSheetStore";
+import { downloadExcelTable } from "../utils/exportReport";
 import { LineChart, Sparkline } from "../components/dashboard/MiniCharts";
 import vesselSrc from "../assets/fermenter-vessel.png";
 
@@ -256,30 +259,30 @@ const ALERTS = [
 const TREND = {
   "24h": {
     labels: ["06:00", "10:00", "14:00", "18:00", "22:00", "02:00"],
-    etoh: [10.8, 11.0, 11.2, 11.28, 11.32, 11.35],
-    temp: [31.8, 32.1, 32.3, 32.4, 32.2, 32.4],
-    ph: [4.6, 4.55, 4.5, 4.48, 4.47, 4.48],
-    brix: [3.1, 2.7, 2.4, 2.2, 2.15, 2.1],
-    sg: [1.062, 1.056, 1.052, 1.05, 1.049, 1.048],
-    rs: [3.2, 2.7, 2.3, 2.1, 1.95, 1.8],
+    etoh: [11.42, 11.38, 11.30, 11.24, 11.18, 11.12],
+    temp: [32.6, 32.5, 32.4, 32.3, 32.2, 32.1],
+    ph: [4.55, 4.52, 4.50, 4.48, 4.47, 4.46],
+    brix: [2.6, 2.45, 2.3, 2.2, 2.1, 2.0],
+    sg: [1.055, 1.053, 1.051, 1.050, 1.049, 1.048],
+    rs: [2.4, 2.2, 2.05, 1.95, 1.85, 1.75],
   },
   "48h": {
     labels: ["-48h", "-36h", "-24h", "-18h", "-12h", "-6h", "Now"],
-    etoh: [8.4, 9.2, 10.1, 10.6, 11.0, 11.2, 11.35],
-    temp: [31.4, 31.8, 32.0, 32.2, 32.5, 32.3, 32.4],
-    ph: [4.8, 4.7, 4.62, 4.55, 4.5, 4.48, 4.48],
-    brix: [8.2, 6.4, 4.8, 3.6, 2.8, 2.3, 2.1],
-    sg: [1.078, 1.07, 1.062, 1.056, 1.052, 1.05, 1.048],
-    rs: [6.4, 5.1, 3.8, 3.0, 2.4, 2.0, 1.8],
+    etoh: [11.55, 11.48, 11.40, 11.32, 11.24, 11.18, 11.10],
+    temp: [32.8, 32.6, 32.5, 32.4, 32.3, 32.2, 32.1],
+    ph: [4.62, 4.58, 4.54, 4.52, 4.50, 4.48, 4.46],
+    brix: [3.4, 3.0, 2.7, 2.5, 2.3, 2.15, 2.0],
+    sg: [1.062, 1.058, 1.055, 1.052, 1.050, 1.049, 1.047],
+    rs: [3.2, 2.8, 2.5, 2.3, 2.1, 1.95, 1.8],
   },
   "7d": {
     labels: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
-    etoh: [11.1, 11.2, 11.28, 11.18, 11.4, 11.25, 11.32],
-    temp: [32.0, 32.2, 32.4, 32.6, 32.1, 32.3, 32.4],
-    ph: [4.5, 4.48, 4.46, 4.5, 4.52, 4.48, 4.48],
-    brix: [2.4, 2.2, 2.1, 2.3, 2.0, 2.15, 2.1],
-    sg: [1.05, 1.048, 1.046, 1.049, 1.044, 1.047, 1.048],
-    rs: [2.2, 2.0, 1.9, 2.1, 1.7, 1.85, 1.8],
+    etoh: [11.48, 11.40, 11.32, 11.26, 11.20, 11.14, 11.08],
+    temp: [32.7, 32.5, 32.4, 32.3, 32.2, 32.15, 32.1],
+    ph: [4.58, 4.54, 4.52, 4.50, 4.48, 4.47, 4.46],
+    brix: [2.8, 2.6, 2.4, 2.3, 2.2, 2.1, 2.0],
+    sg: [1.056, 1.053, 1.051, 1.050, 1.049, 1.048, 1.047],
+    rs: [2.5, 2.3, 2.15, 2.05, 1.95, 1.85, 1.75],
   },
 };
 
@@ -415,11 +418,53 @@ export default function FermentationOverviewPage() {
   const [trendRange, setTrendRange] = useState("48h");
   const [selectedId, setSelectedId] = useState("F1");
   const [q, setQ] = useState("");
+  const [filterFlash, setFilterFlash] = useState("");
   const kpi = PERIOD_KPI[period] || PERIOD_KPI.today;
   const trend = TREND[trendRange] || TREND["48h"];
   const selected = FERMENTERS.find((f) => f.id === selectedId) || FERMENTERS[0];
   const name = firstName(user);
   const initials = name.slice(0, 1).toUpperCase();
+  const periodLabel = PERIODS.find((p) => p.value === period)?.label || "Today";
+  const shiftLabel = SHIFTS.find((s) => s.value === shift)?.label || shift;
+
+  useEffect(() => {
+    setFilterFlash(`Showing ${periodLabel} · ${shiftLabel} · ${date}`);
+    const t = window.setTimeout(() => setFilterFlash(""), 2200);
+    return () => window.clearTimeout(t);
+  }, [date, shift, period, periodLabel, shiftLabel]);
+
+  const notifs = useMemo(
+    () =>
+      ALERTS.map((a, i) => ({
+        id: `ferm-${i}`,
+        title: a.title,
+        detail: a.detail,
+        time: a.time,
+        level: a.level,
+      })),
+    []
+  );
+
+  const handleExport = () => {
+    downloadExcelTable({
+      fileName: `Fermentation_Overview_${date}_Shift${shift}`,
+      title: "Fermenter Overview",
+      headers: ["Fermenter", "Batch", "Status", "Ethanol %", "Temp °C", "pH", "RS %", "Efficiency %", "Feedstock"],
+      rows: FERMENTERS.map((f) => [
+        f.id,
+        f.batch,
+        f.status,
+        f.ethanol,
+        f.temp,
+        f.ph,
+        f.rs,
+        f.eff,
+        f.feedstock,
+      ]),
+      sheetName: "Fermenters",
+      subtitle: `${periodLabel}  ·  ${shiftLabel}  ·  ${date}`,
+    });
+  };
 
   const list = useMemo(() => {
     const s = q.trim().toLowerCase();
@@ -437,9 +482,9 @@ export default function FermentationOverviewPage() {
     { label: "Cell Count", value: `${selected.cells} B/mL`, sub: "Target: 10 – 14", icon: Microscope, iconClass: "bg-indigo-50 text-indigo-600" },
     {
       label: "Dosing 1",
-      value: selected.dosing1 === "—" ? "—" : `${selected.dosing1} L/h`,
-      sub: "Target: 1.00 – 1.40",
-      bad: selected.dosing1 !== "—" && Number(selected.dosing1) > 1.4,
+      value: selected.dosing1 === "—" ? "—" : "Completed",
+      sub: "",
+      bad: false,
       icon: Droplets,
       iconClass: "bg-teal-50 text-teal-700",
     },
@@ -457,16 +502,24 @@ export default function FermentationOverviewPage() {
   return (
     <div className="min-h-full bg-stone-250 px-4 py-4 sm:px-6 lg:px-7">
       <header className="mb-4 rounded-2xl border border-stone-200/80 bg-white px-5 py-4 shadow-[0_8px_24px_rgba(15,23,42,0.04)]">
-        <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-[#2563eb]">Fermentation</p>
             <h1 className="mt-0.5 text-2xl font-black tracking-tight text-[#0f2744]">Fermenter Overview</h1>
-            <p className="mt-0.5 text-sm font-medium text-stone-500">Live tanks, batch detail, trends, and latest logs.</p>
+            <p className="mt-0.5 text-sm font-medium text-stone-500">
+              Live tanks, batch detail, trends, and latest logs · {periodLabel} · Shift {shift} · {date}
+            </p>
+            {filterFlash ? <p className="mt-1 text-[11px] font-bold text-[#3b74e8]">{filterFlash}</p> : null}
           </div>
-          <div className="flex flex-wrap items-center justify-end gap-2.5">
-            <DistillerDatePicker value={date} onChange={setDate} compact className="w-[148px]" />
-            <DistillerSelect value={period} onChange={setPeriod} options={PERIODS} compact className="w-[158px]" />
-            <DistillerSelect value={shift} onChange={setShift} options={SHIFTS} compact className="w-[210px]" />
+          <div className="flex shrink-0 flex-nowrap items-center justify-end gap-2.5">
+            <button
+              type="button"
+              onClick={handleExport}
+              className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-sky-200 bg-white px-3 text-[12px] font-bold text-[#3b74e8] hover:bg-sky-50"
+            >
+              <Download size={14} strokeWidth={2.4} />
+              Download Report
+            </button>
             <button
               type="button"
               onClick={() => navigate("/fermentation/analysis")}
@@ -475,6 +528,7 @@ export default function FermentationOverviewPage() {
               <Plus size={14} strokeWidth={2.6} />
               Add Log
             </button>
+            <NotificationBell items={notifs} />
             <div className="flex items-center gap-2.5 rounded-xl border border-stone-200 bg-white py-1 pl-1 pr-3">
               <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#2563eb] text-xs font-black text-white">{initials}</span>
               <div className="min-w-0 leading-tight">
@@ -483,6 +537,11 @@ export default function FermentationOverviewPage() {
               </div>
             </div>
           </div>
+        </div>
+        <div className="mt-3 flex flex-wrap items-center gap-2.5 border-t border-stone-100 pt-3">
+          <DistillerDatePicker value={date} onChange={setDate} compact className="w-[148px]" />
+          <DistillerSelect value={period} onChange={setPeriod} options={PERIODS} compact className="w-[158px]" />
+          <DistillerSelect value={shift} onChange={setShift} options={SHIFTS} compact className="w-[210px]" />
         </div>
       </header>
 
@@ -601,7 +660,14 @@ export default function FermentationOverviewPage() {
                   return (
                     <div key={m.label} className="flex items-start justify-between gap-2 rounded-xl bg-[#f4f7f8] px-3 py-2.5">
                       <div className="min-w-0">
-                        <p className="text-[10px] font-extrabold uppercase tracking-wider text-stone-400">{m.label}</p>
+                        <div className="flex items-center gap-1.5">
+                          <p className="text-[10px] font-extrabold uppercase tracking-wider text-stone-400">{m.label}</p>
+                          {m.completed ? (
+                            <span className="rounded-full bg-emerald-50 px-1.5 py-0.5 text-[8px] font-extrabold uppercase tracking-wide text-emerald-700">
+                              Completed
+                            </span>
+                          ) : null}
+                        </div>
                         <p className="mt-0.5 text-[15px] font-black tabular-nums text-[#0f2744]">{m.value}</p>
                         <p className={`text-[10px] font-bold ${m.bad ? "text-rose-500" : "text-blue-600"}`}>{m.sub}</p>
                       </div>
@@ -642,16 +708,19 @@ export default function FermentationOverviewPage() {
             <span className="inline-flex items-center gap-1"><span className="h-1.5 w-3 rounded-full bg-[#a855f7]" /> SG</span>
             <span className="inline-flex items-center gap-1"><span className="h-1.5 w-3 rounded-full bg-[#f59e0b]" /> RS</span>
           </div>
-          <LineChart
-            labels={trend.labels}
-            series={[
-              { label: "EtOH", color: "#3b82f6", data: trend.etoh },
-              { label: "Temp", color: "#ef4444", data: trend.temp },
-              { label: "pH", color: "#22c55e", data: trend.ph },
-              { label: "SG", color: "#a855f7", data: trend.sg },
-              { label: "RS", color: "#f59e0b", data: trend.rs },
-            ]}
-          />
+          <div className="-mt-1 origin-top translate-y-[-6px] rotate-[-2.5deg]">
+            <LineChart
+              labels={trend.labels}
+              height={168}
+              series={[
+                { label: "EtOH", color: "#3b82f6", data: trend.etoh },
+                { label: "Temp", color: "#ef4444", data: trend.temp },
+                { label: "pH", color: "#22c55e", data: trend.ph },
+                { label: "SG", color: "#a855f7", data: trend.sg },
+                { label: "RS", color: "#f59e0b", data: trend.rs },
+              ]}
+            />
+          </div>
         </Card>
 
         <Card title="Batch Summary">

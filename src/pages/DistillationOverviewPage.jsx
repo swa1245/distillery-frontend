@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   AlertTriangle,
@@ -12,6 +12,7 @@ import {
 import { useAuth } from "../context/AuthContext";
 import DistillerDatePicker from "../components/DistillerDatePicker";
 import DistillerSelect from "../components/DistillerSelect";
+import NotificationBell from "../components/NotificationBell";
 import { todayIso } from "../utils/datedSheetStore";
 import { downloadDashboardHtmlReport, downloadExcelTable } from "../utils/exportReport";
 import { BarSpark, LineChart, Sparkline } from "../components/dashboard/MiniCharts";
@@ -247,9 +248,12 @@ export default function DistillationOverviewPage() {
   const [date, setDate] = useState(todayIso);
   const [shift, setShift] = useState("A");
   const [period, setPeriod] = useState("today");
+  const [filterFlash, setFilterFlash] = useState("");
   const view = VIEWS[period] || VIEWS.today;
   const name = firstName(user);
   const initials = name.slice(0, 1).toUpperCase();
+  const periodLabel = PERIODS.find((p) => p.value === period)?.label || "Today";
+  const shiftLabel = SHIFTS.find((s) => s.value === shift)?.label || `Shift ${shift}`;
   const updated = useMemo(
     () =>
       new Date().toLocaleString("en-GB", {
@@ -261,9 +265,32 @@ export default function DistillationOverviewPage() {
     []
   );
 
+  useEffect(() => {
+    setFilterFlash(`Showing ${periodLabel} · ${shiftLabel} · ${date}`);
+    const t = window.setTimeout(() => setFilterFlash(""), 2200);
+    return () => window.clearTimeout(t);
+  }, [date, shift, period, periodLabel, shiftLabel]);
+
+  const notifs = useMemo(
+    () =>
+      ALERTS.map((a, i) => ({
+        id: `dist-${i}`,
+        title: a.title,
+        detail: a.detail,
+        time: a.time,
+        level: a.level,
+      })),
+    []
+  );
+
+  const analysisRows = useMemo(() => {
+    const rows = view.analysis;
+    if (shift === "A") return rows.slice(0, Math.ceil(rows.length * 0.5));
+    if (shift === "B") return rows.slice(Math.floor(rows.length / 3));
+    return rows.slice(Math.floor((rows.length * 2) / 3));
+  }, [view.analysis, shift]);
+
   const handleExport = () => {
-    const periodLabel = PERIODS.find((p) => p.value === period)?.label || "Today";
-    const shiftLabel = SHIFTS.find((s) => s.value === shift)?.label || `Shift ${shift}`;
     const company = user?.organizationName || "Digital Distillery";
 
     downloadDashboardHtmlReport({
@@ -293,7 +320,7 @@ export default function DistillationOverviewPage() {
           title: "Online Analysis — Alcohol Content (% v/v)",
           kind: "table",
           headers: ANALYSIS_HEADS,
-          rows: [...view.analysis, view.avg],
+          rows: [...analysisRows, view.avg],
           highlightLast: true,
         },
         {
@@ -360,7 +387,7 @@ export default function DistillationOverviewPage() {
         },
         {
           title: "Online Analysis",
-          rows: [...view.analysis, view.avg].map((row) => [
+          rows: [...analysisRows, view.avg].map((row) => [
             "Analysis",
             row[0],
             row.slice(1, -1).join(" | "),
@@ -392,18 +419,16 @@ export default function DistillationOverviewPage() {
   return (
     <div className="min-h-full bg-stone-250 px-4 py-4 sm:px-6 lg:px-7">
       <header className="mb-4 rounded-2xl border border-stone-200/80 bg-white px-5 py-4 shadow-[0_8px_24px_rgba(15,23,42,0.04)]">
-        <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-[#2563eb]">Distillery</p>
             <h1 className="mt-0.5 text-2xl font-black tracking-tight text-[#0f2744]">Distillation Overview</h1>
             <p className="mt-0.5 text-sm font-medium text-stone-500">
-              Real-time monitoring of distillation columns and online analysis.
+              Real-time monitoring of distillation columns and online analysis · {periodLabel} · Shift {shift} · {date}
             </p>
+            {filterFlash ? <p className="mt-1 text-[11px] font-bold text-[#3b74e8]">{filterFlash}</p> : null}
           </div>
-          <div className="flex flex-wrap items-center justify-end gap-2.5">
-            <DistillerDatePicker value={date} onChange={setDate} compact className="w-[148px]" />
-            <DistillerSelect value={period} onChange={setPeriod} options={PERIODS} compact className="w-[158px]" />
-            <DistillerSelect value={shift} onChange={setShift} options={SHIFTS} compact className="w-[210px]" />
+          <div className="flex shrink-0 flex-nowrap items-center justify-end gap-2.5">
             <button
               type="button"
               onClick={handleExport}
@@ -420,6 +445,7 @@ export default function DistillationOverviewPage() {
               <Plus size={14} strokeWidth={2.6} />
               Add Log
             </button>
+            <NotificationBell items={notifs} />
             <div className="flex items-center gap-2.5 rounded-xl border border-stone-200 bg-white py-1 pl-1 pr-3">
               <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#2563eb] text-xs font-black text-white">
                 {initials}
@@ -430,6 +456,11 @@ export default function DistillationOverviewPage() {
               </div>
             </div>
           </div>
+        </div>
+        <div className="mt-3 flex flex-wrap items-center gap-2.5 border-t border-stone-100 pt-3">
+          <DistillerDatePicker value={date} onChange={setDate} compact className="w-[148px]" />
+          <DistillerSelect value={period} onChange={setPeriod} options={PERIODS} compact className="w-[158px]" />
+          <DistillerSelect value={shift} onChange={setShift} options={SHIFTS} compact className="w-[210px]" />
         </div>
       </header>
 
@@ -517,7 +548,7 @@ export default function DistillationOverviewPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-stone-100">
-                {view.analysis.map((row) => (
+                {analysisRows.map((row) => (
                   <tr key={row[0]}>
                     {row.map((cell, i) => (
                       <td key={ANALYSIS_HEADS[i]} className={`py-2 pr-3 text-[12px] ${i === 0 ? "font-extrabold text-[#0f2744]" : "font-semibold tabular-nums text-stone-700"}`}>
