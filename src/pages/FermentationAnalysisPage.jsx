@@ -39,6 +39,11 @@ const HPLC_COLS = [
 
 const INPUT_COLS = [
   { key: "distillaseCs", label: "Distillase CS" },
+  { key: "urea", label: "Urea" },
+  { key: "nutroboost", label: "Nutroboost" },
+  { key: "aquzymeLiq", label: "Aquzyme LIQ." },
+  { key: "smbs", label: "Smbs" },
+  { key: "mgso4", label: "Mgso4" },
   { key: "promoterG", label: "Promoter G" },
   { key: "sctLactroll", label: "SCT - Lactroll" },
 ];

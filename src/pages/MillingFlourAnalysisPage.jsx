@@ -179,7 +179,7 @@ function exportHeaders(millingCols) {
     "Date",
     "Time",
     "Maize",
-    "Brown Rice",
+    "Broken Rice",
     ...millingCols.map((c) => c.label),
     "Starch %",
     "Pass Fermenter",
@@ -284,7 +284,7 @@ export default function MillingFlourAnalysisPage() {
         const next = { ...row, [field]: value };
         if (field === "time") next.shift = shiftForTime(value);
 
-        // Feedstock %: Maize + Brown Rice always total 100 (supports decimals)
+        // Feedstock %: Maize + Broken Rice always total 100 (supports decimals)
         if (field === "maize" || field === "brownRice") {
           const raw = String(value ?? "").trim();
           if (raw === "" || raw === "." || raw === "-") {
@@ -449,7 +449,7 @@ export default function MillingFlourAnalysisPage() {
           onTypeChange={setTypeFilter}
           search={search}
           onSearchChange={setSearch}
-          searchPlaceholder="Search time, maize, brown rice, fermenter…"
+          searchPlaceholder="Search time, maize, broken rice, fermenter…"
           onAddRow={addRow}
         />
 
@@ -490,7 +490,7 @@ export default function MillingFlourAnalysisPage() {
                   Maize
                 </th>
                 <th className="px-2 py-2 border-r border-white/10 bg-[#1d4ed8] min-w-[110px] text-center">
-                  Brown Rice
+                  Broken Rice
                 </th>
                 {millingCols.map((col) => (
                   <th
@@ -599,7 +599,7 @@ function ShiftBlock({ label, rows, updateRow, removeRow, stopped, millingCols, c
               step="any"
               value={row.brownRice}
               onChange={(e) => updateRow(row.id, "brownRice", e.target.value)}
-              placeholder="Brown rice %"
+              placeholder="Broken rice %"
             />
           </td>
           {millingCols.map((col) => (

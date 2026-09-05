@@ -453,7 +453,12 @@ export function downloadExcelTable({ fileName, title, companyName, headers, rows
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = fileName.endsWith(".xlsx") ? fileName : `${fileName.replace(/\.xls$/i, "")}.xlsx`;
+  const safe =
+    String(fileName || title || sheetName || "Report")
+      .replace(/[^\w.\-]+/g, "_")
+      .replace(/_+/g, "_")
+      .replace(/^_|_$/g, "") || "Report";
+  a.download = /\.xlsx$/i.test(safe) ? safe : `${safe.replace(/\.xls$/i, "")}.xlsx`;
   document.body.appendChild(a);
   a.click();
   a.remove();

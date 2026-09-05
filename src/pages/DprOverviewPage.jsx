@@ -9,7 +9,6 @@ import {
   Factory,
   FileSpreadsheet,
   FlaskConical,
-  Printer,
   RefreshCw,
   Scale,
   Target,
@@ -377,6 +376,7 @@ export default function DprOverviewPage() {
 
   const handleExport = (kind) => {
     downloadExcelTable({
+      fileName: `DPR_${date}_Shift${shift}_${kind === "dpr" ? "Report" : "Excel"}`,
       title: kind === "dpr" ? "Daily Production Report" : "DPR Export",
       companyName: org,
       headers: ["Parameter", view.compareA, view.compareB, "Change", "Target", "Achievement %"],
@@ -402,9 +402,6 @@ export default function DprOverviewPage() {
             <DistillerDatePicker value={date} onChange={setDate} compact className="w-[148px]" />
             <DistillerSelect value={period} onChange={setPeriod} options={PERIODS} compact className="w-[158px]" />
             <DistillerSelect value={shift} onChange={setShift} options={SHIFTS} compact className="w-[210px]" />
-            <button type="button" onClick={() => window.print()} className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-3 text-[12px] font-bold text-stone-700 hover:bg-stone-50">
-              <Printer size={14} /> Print DPR
-            </button>
             <button type="button" onClick={() => handleExport("dpr")} className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-sky-200 bg-white px-3 text-[12px] font-bold text-[#3b74e8] hover:bg-sky-50">
               <Download size={14} /> Download DPR
             </button>
@@ -746,7 +743,7 @@ export default function DprOverviewPage() {
                 { label: "Recalculate DPR", icon: RefreshCw, go: () => ping(`Recalculated ${calculated}.`) },
                 { label: "Compare Shifts", icon: FlaskConical, go: () => ping("Shift compare uses the shift filter above.") },
                 { label: "View Logs", icon: FileSpreadsheet, go: () => navigate("/laboratory/register") },
-                { label: "Print DPR", icon: Printer, go: () => window.print() },
+                { label: "Download DPR", icon: Download, go: () => handleExport("dpr") },
               ].map((a) => {
                 const Icon = a.icon;
                 return (

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   CircleAlert,
@@ -17,6 +17,7 @@ import {
 import { useAuth } from "../context/AuthContext";
 import DistillerDatePicker from "../components/DistillerDatePicker";
 import DistillerSelect from "../components/DistillerSelect";
+import NotificationBell from "../components/NotificationBell";
 import { todayIso } from "../utils/datedSheetStore";
 import { downloadExcelTable } from "../utils/exportReport";
 import { LineChart } from "../components/dashboard/MiniCharts";
@@ -369,48 +370,48 @@ const VIEWS = {
 const TREND = {
   "24h": {
     labels: ["06:00", "10:00", "14:00", "18:00", "22:00", "02:00"],
-    temp: [92.6, 93.0, 93.4, 93.2, 93.1, 93.23],
-    ph: [5.68, 5.70, 5.74, 5.72, 5.71, 5.72],
-    visc: [146, 149, 154, 152, 151, 152],
-    ts: [32.1, 32.3, 32.6, 32.5, 32.4, 32.5],
+    temp: [91.4, 93.8, 92.1, 94.2, 91.8, 93.2],
+    ph: [5.52, 5.84, 5.61, 5.92, 5.58, 5.74],
+    visc: [136, 158, 142, 164, 140, 152],
+    ts: [30.6, 33.5, 31.4, 34.0, 31.0, 32.6],
   },
   "48h": {
     labels: ["26 Apr 14:00", "26 Apr 22:00", "27 Apr 06:00", "27 Apr 14:00", "27 Apr 22:00", "28 Apr 06:00", "28 Apr 14:00"],
-    temp: [92.4, 92.8, 93.0, 93.3, 93.1, 92.9, 93.23],
-    ph: [5.66, 5.69, 5.71, 5.74, 5.72, 5.70, 5.72],
-    visc: [144, 148, 150, 155, 152, 150, 152],
-    ts: [32.0, 32.2, 32.4, 32.7, 32.5, 32.3, 32.5],
+    temp: [91.2, 93.6, 92.0, 94.4, 91.6, 93.9, 92.8],
+    ph: [5.48, 5.86, 5.60, 5.95, 5.55, 5.82, 5.70],
+    visc: [134, 156, 141, 166, 138, 159, 148],
+    ts: [30.4, 33.2, 31.2, 34.1, 30.9, 33.0, 32.2],
   },
   "7d": {
     labels: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
-    temp: [92.8, 93.0, 93.2, 93.1, 93.4, 93.0, 93.23],
-    ph: [5.68, 5.70, 5.72, 5.71, 5.74, 5.70, 5.72],
-    visc: [148, 150, 152, 151, 154, 150, 152],
-    ts: [32.2, 32.3, 32.5, 32.4, 32.6, 32.3, 32.5],
+    temp: [91.0, 94.1, 92.2, 93.8, 91.5, 94.3, 92.6],
+    ph: [5.50, 5.90, 5.62, 5.88, 5.54, 5.85, 5.70],
+    visc: [132, 162, 140, 158, 136, 160, 148],
+    ts: [30.2, 33.8, 31.0, 33.5, 30.8, 33.6, 32.1],
   },
 };
 
 const PERIOD_TREND = {
   "1m": {
     labels: ["W1", "W2", "W3", "W4"],
-    temp: [92.8, 93.1, 93.0, 93.1],
-    ph: [5.68, 5.72, 5.70, 5.71],
-    visc: [148, 151, 150, 150],
-    ts: [32.2, 32.5, 32.4, 32.4],
+    temp: [91.4, 93.9, 92.1, 93.5],
+    ph: [5.55, 5.88, 5.64, 5.78],
+    visc: [138, 160, 144, 154],
+    ts: [30.8, 33.6, 31.4, 32.8],
   },
   "2m": {
     labels: ["W1", "W2", "W3", "W4", "W5", "W6", "W7", "W8"],
-    temp: [92.6, 92.9, 93.1, 93.0, 93.2, 93.0, 92.9, 93.05],
-    ph: [5.67, 5.70, 5.72, 5.71, 5.73, 5.70, 5.69, 5.71],
-    visc: [147, 150, 152, 151, 153, 150, 151, 151],
-    ts: [32.1, 32.3, 32.5, 32.4, 32.6, 32.4, 32.3, 32.35],
+    temp: [91.2, 93.8, 92.0, 94.0, 91.6, 93.5, 92.4, 93.2],
+    ph: [5.52, 5.86, 5.60, 5.92, 5.58, 5.80, 5.65, 5.74],
+    visc: [134, 158, 142, 164, 138, 156, 145, 152],
+    ts: [30.5, 33.4, 31.2, 33.9, 30.9, 33.1, 31.6, 32.5],
   },
   all: {
     labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
-    temp: [92.7, 92.9, 93.0, 93.1, 93.2, 93.1, 93.3, 93.2, 93.1, 93.2, 93.0, 93.2],
-    ph: [5.68, 5.69, 5.70, 5.71, 5.72, 5.71, 5.73, 5.72, 5.71, 5.72, 5.70, 5.71],
-    visc: [148, 149, 150, 151, 152, 150, 153, 151, 150, 151, 149, 150],
-    ts: [32.2, 32.3, 32.4, 32.4, 32.5, 32.4, 32.6, 32.5, 32.4, 32.5, 32.3, 32.45],
+    temp: [91.0, 92.8, 91.5, 93.6, 92.2, 94.1, 91.8, 93.4, 92.0, 93.8, 91.6, 93.2],
+    ph: [5.50, 5.78, 5.58, 5.90, 5.64, 5.88, 5.55, 5.82, 5.62, 5.86, 5.54, 5.74],
+    visc: [132, 150, 138, 162, 142, 158, 136, 155, 140, 160, 134, 152],
+    ts: [30.2, 32.4, 31.0, 33.6, 31.5, 33.8, 30.8, 32.9, 31.2, 33.4, 30.6, 32.5],
   },
 };
 
@@ -473,13 +474,35 @@ export default function MillingOverviewPage() {
   const [trendRange, setTrendRange] = useState("48h");
   const [tab, setTab] = useState("logs");
   const [page, setPage] = useState(1);
+  const [filterFlash, setFilterFlash] = useState("");
   const view = VIEWS[period] || VIEWS.today;
   const trend = period === "today" ? TREND[trendRange] || TREND["48h"] : PERIOD_TREND[period] || TREND["48h"];
   const name = firstName(user);
   const initials = name.slice(0, 1).toUpperCase();
   const periodLabel = PERIODS.find((p) => p.value === period)?.label || "Today";
+  const shiftLabel = SHIFTS.find((s) => s.value === shift)?.label || `Shift ${shift}`;
 
-  const logRows = view.logs;
+  useEffect(() => {
+    setFilterFlash(`Showing ${periodLabel} · ${shiftLabel} · ${date}`);
+    const t = window.setTimeout(() => setFilterFlash(""), 2200);
+    return () => window.clearTimeout(t);
+  }, [date, shift, period, periodLabel, shiftLabel]);
+
+  const millNotifs = useMemo(
+    () => [
+      { id: "m1", title: "Mill-02 on standby", detail: "Load 0% · ready for changeover", time: "10:05 AM", level: "info" },
+      { id: "m2", title: "Starch below agreed", detail: `${view.kpis[1]?.value || "—"}% vs 68% agreed`, time: "09:40 AM", level: "warn" },
+      { id: "m3", title: "Liquefaction efficiency watch", detail: `${view.kpis[4]?.value || "—"}% vs 94% agreed`, time: "09:12 AM", level: "warn" },
+    ],
+    [view.kpis]
+  );
+
+  const logRows = useMemo(() => {
+    // Demo: Shift B/C show later half of the log window
+    if (shift === "A") return view.logs;
+    if (shift === "B") return view.logs.slice(Math.floor(view.logs.length / 3));
+    return view.logs.slice(Math.floor((view.logs.length * 2) / 3));
+  }, [view.logs, shift]);
   const pageSize = 5;
   const pages = Math.max(1, Math.ceil(logRows.length / pageSize));
   const shown = logRows.slice((page - 1) * pageSize, page * pageSize);
@@ -488,9 +511,10 @@ export default function MillingOverviewPage() {
     downloadExcelTable({
       title: "Milling & Liquefaction Overview",
       headers: LOG_HEADS,
-      rows: view.logs,
+      rows: logRows,
       sheetName: "Milling Liquefaction",
-      subtitle: `${periodLabel}  ·  Shift ${shift}`,
+      subtitle: `${periodLabel}  ·  ${shiftLabel}  ·  ${date}`,
+      fileName: `Milling_Overview_${date}_Shift${shift}.xlsx`,
     });
   };
 
@@ -504,27 +528,16 @@ export default function MillingOverviewPage() {
   return (
     <div className="min-h-full bg-stone-250 px-4 py-4 sm:px-6 lg:px-7">
       <header className="mb-4 rounded-2xl border border-stone-200/80 bg-white px-5 py-4 shadow-[0_8px_24px_rgba(15,23,42,0.04)]">
-        <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-[#2563eb]">Milling & Liquefaction</p>
             <h1 className="mt-0.5 text-2xl font-black tracking-tight text-[#0f2744]">Milling & Liquefaction Overview</h1>
             <p className="mt-0.5 text-sm font-medium text-stone-500">
-              Grain grind, mash cook, recycle, and mass balance in one view.
+              Grain grind, mash cook, recycle, and mass balance · {periodLabel} · Shift {shift} · {date}
             </p>
+            {filterFlash ? <p className="mt-1 text-[11px] font-bold text-[#3b74e8]">{filterFlash}</p> : null}
           </div>
-          <div className="flex flex-wrap items-center justify-end gap-2.5">
-            <DistillerDatePicker value={date} onChange={setDate} compact className="w-[148px]" />
-            <DistillerSelect
-              value={period}
-              onChange={(v) => {
-                setPeriod(v);
-                setPage(1);
-              }}
-              options={PERIODS}
-              compact
-              className="w-[158px]"
-            />
-            <DistillerSelect value={shift} onChange={setShift} options={SHIFTS} compact className="w-[210px]" />
+          <div className="flex shrink-0 flex-nowrap items-center justify-end gap-2.5">
             <button
               type="button"
               onClick={handleExport}
@@ -541,6 +554,7 @@ export default function MillingOverviewPage() {
               <Plus size={14} strokeWidth={2.6} />
               Add Log
             </button>
+            <NotificationBell items={millNotifs} />
             <div className="flex items-center gap-2.5 rounded-xl border border-stone-200 bg-white py-1 pl-1 pr-3">
               <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#2563eb] text-xs font-black text-white">
                 {initials}
@@ -551,6 +565,29 @@ export default function MillingOverviewPage() {
               </div>
             </div>
           </div>
+        </div>
+        <div className="mt-3 flex flex-wrap items-center gap-2.5 border-t border-stone-100 pt-3">
+          <DistillerDatePicker value={date} onChange={setDate} compact className="w-[148px]" />
+          <DistillerSelect
+            value={period}
+            onChange={(v) => {
+              setPeriod(v);
+              setPage(1);
+            }}
+            options={PERIODS}
+            compact
+            className="w-[158px]"
+          />
+          <DistillerSelect
+            value={shift}
+            onChange={(v) => {
+              setShift(v);
+              setPage(1);
+            }}
+            options={SHIFTS}
+            compact
+            className="w-[210px]"
+          />
         </div>
       </header>
 
@@ -629,6 +666,7 @@ export default function MillingOverviewPage() {
           </div>
           <LineChart
             labels={trend.labels}
+            independentScales
             series={[
               { label: "Temp", color: "#ef4444", data: trend.temp },
               { label: "pH", color: "#3b82f6", data: trend.ph },
